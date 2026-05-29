@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: idm-vton-web-demo
+    env: python
+    plan: free
+    buildCommand: python -m pip install -r requirements-web.txt
+    startCommand: python -B web_demo/server.py --host 0.0.0.0
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: IDM_VTON_REMOTE_URL
+        sync: false
+      - key: IDM_VTON_REMOTE_TIMEOUT
+        value: "1800"

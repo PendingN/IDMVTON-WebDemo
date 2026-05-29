@@ -1,0 +1,2 @@
+# The hosted web demo uses only the Python standard library.
+# Keep this file for Render/Railway build commands.

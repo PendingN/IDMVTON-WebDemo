@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Locomode | Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="/static/css/styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand-mark" href="/">Locomode</a>
+        <nav class="header-links" aria-label="Điều hướng">
+          <a href="/">Landing</a>
+          <a href="#collection">Collection</a>
+          <a href="#pdp">PDP</a>
+          <button id="headerTryOnButton" class="nav-link-button" type="button">Try-On</button>
+        </nav>
+        <button id="headerCartButton" class="cart-pill" type="button">
+          Cart
+          <span id="cartCountBadge">0</span>
+        </button>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Shopping Page</p>
+          <h1>Chọn món đồ hỗ trợ thử ảo rồi đi thẳng vào quyết định mua.</h1>
+          <p class="hero-text">
+            Đây là trang shopping thực thụ: collection để lướt sản phẩm, PDP để chốt màu và size, và một CTA mở phòng
+            thử đồ riêng với đúng item đang được quan tâm.
+          </p>
+          <div class="hero-actions">
+            <a class="hero-button primary" href="#collection">Lướt collection</a>
+            <button id="openTryOnButton" class="hero-button secondary" type="button">Mở virtual try-on</button>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <img id="shopHeroImage" alt="Selected collection preview">
+          <div class="hero-floating hero-badge">Hỗ trợ thử ảo</div>
+          <div id="shopHeroMeta" class="hero-floating hero-note">Chọn item để cập nhật selection hiện tại.</div>
+        </div>
+      </section>
+
+      <section class="collection-section" id="collection" aria-labelledby="collectionTitle">
+        <div class="section-head">
+          <div>
+            <p class="panel-kicker">Step 01</p>
+            <h2 id="collectionTitle">Lướt bộ sưu tập.</h2>
+          </div>
+          <p>Những sản phẩm có thử ảo đều được gắn badge ngay trên card.</p>
+        </div>
+
+        <div id="productGrid" class="product-grid" aria-label="Danh sách sản phẩm"></div>
+      </section>
+
+      <section class="pdp-section" id="pdp" aria-labelledby="pdpTitle">
+        <div class="pdp-media">
+          <span class="tryon-badge large">Virtual Try-On Ready</span>
+          <img id="pdpImage" alt="Ảnh sản phẩm đang chọn">
+        </div>
+
+        <div class="pdp-copy">
+          <p class="panel-kicker">Step 02 / PDP</p>
+          <h2 id="pdpTitle">Trang chi tiết sản phẩm.</h2>
+          <h3 id="pdpProductName">Loading...</h3>
+          <p id="pdpProductPrice" class="product-price">-</p>
+          <p id="pdpProductDescription" class="product-description">-</p>
+
+          <div class="option-group">
+            <span>Màu / phiên bản</span>
+            <div id="pdpSwatches" class="swatch-row" aria-label="Các phiên bản sản phẩm"></div>
+          </div>
+
+          <div class="option-group">
+            <span>Size</span>
+            <div id="pageSizeOptions" class="size-row" aria-label="Chọn size"></div>
+          </div>
+
+          <div class="pdp-actions">
+            <button id="pdpAddToCartButton" class="primary-button" type="button">Thêm vào giỏ hàng</button>
+            <button id="openTryOnButtonSecondary" class="secondary-button" type="button">Thử lên người bạn</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="cartToast" class="cart-toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/static/js/shop.js"></script>
+  </body>
+</html>

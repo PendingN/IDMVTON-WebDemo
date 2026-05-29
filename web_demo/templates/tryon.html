@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Locomode | Virtual Try-On</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="/static/css/styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="brand-mark" href="/">Locomode</a>
+        <nav class="header-links" aria-label="Điều hướng">
+          <a href="/">Landing</a>
+          <a href="/shop">Shop</a>
+          <a href="/try-on">Try-On</a>
+        </nav>
+        <button id="headerCartButton" class="cart-pill" type="button">
+          Cart
+          <span id="cartCountBadge">0</span>
+        </button>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Virtual Try-On</p>
+          <h1>Chọn áo. Tải ảnh. Xem kết quả.</h1>
+          <p class="hero-text">
+            Giao diện thử đồ được rút gọn còn ba thao tác chính. Các tuỳ chỉnh kỹ thuật nằm riêng ở cuối trang.
+          </p>
+          <div class="hero-actions">
+            <a class="hero-button secondary" href="/shop">Quay lại shop</a>
+            <a class="hero-button primary" href="#tryonWorkbench">Bắt đầu thử</a>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <img id="tryonHeroImage" alt="Try-on garment preview">
+          <div class="hero-floating hero-badge">Shop + Upload</div>
+          <div id="tryonHeroNote" class="hero-floating hero-note">Chọn nguồn garment để bắt đầu.</div>
+        </div>
+      </section>
+
+      <section class="tryon-workbench" id="tryonWorkbench" aria-labelledby="workbenchTitle">
+        <div class="modal-header tryon-page-head">
+          <div>
+            <p class="panel-kicker">Try-On Flow</p>
+            <h2 id="workbenchTitle">Phòng thử đồ</h2>
+          </div>
+          <a class="ghost-button page-link-button" href="/shop">Back To Shop</a>
+        </div>
+
+        <section class="api-setup-panel" aria-labelledby="apiSetupTitle">
+          <div class="api-setup-copy">
+            <p class="panel-kicker">Kết nối API</p>
+            <h3 id="apiSetupTitle">Dán link Colab bridge</h3>
+            <p id="remoteUrlHelp">
+              Nhận link Cloudflare/ngrok hoặc localhost. Có thể dán cả URL gốc hoặc URL kết thúc bằng
+              <code>/api/tryon</code>.
+            </p>
+          </div>
+          <div class="api-setup-form">
+            <label for="remoteUrlInput">Colab API URL</label>
+            <div class="api-input-row">
+              <input
+                id="remoteUrlInput"
+                name="remote_url"
+                type="url"
+                inputmode="url"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="remoteUrlHelp remoteUrlFeedback"
+                placeholder="https://your-bridge.trycloudflare.com…"
+              >
+              <button id="pasteRemoteButton" class="ghost-button slim" type="button">Dán link</button>
+              <button id="checkRemoteButton" class="secondary-button slim" type="button">Test API</button>
+            </div>
+            <div class="api-quick-row" aria-label="API preset">
+              <button class="api-preset-chip" type="button" data-remote-url="http://127.0.0.1:7862">Local 7862</button>
+              <button class="api-preset-chip" type="button" data-remote-url="http://127.0.0.1:7863">Local 7863</button>
+              <button id="clearRemoteButton" class="api-preset-chip muted" type="button">Xóa</button>
+            </div>
+            <p id="remoteUrlFeedback" class="api-feedback" role="status" aria-live="polite">
+              Chưa kết nối API.
+            </p>
+          </div>
+        </section>
+
+        <div class="tryon-simple-grid tryon-commerce-grid">
+          <section class="tryon-steps tryon-control-column" aria-labelledby="sourceTitle">
+            <article class="simple-step control-card">
+              <div class="compact-head">
+                <span class="step-number">1</span>
+                <div>
+                  <p class="panel-kicker">Người mẫu</p>
+                  <h3>Chọn ảnh người</h3>
+                </div>
+              </div>
+
+              <div class="avatar-picker-line">
+                <div id="humanExamples" class="avatar-choice-row" aria-label="Mẫu người dùng"></div>
+                <button id="uploadTriggerButton" class="upload-avatar-tile" type="button">
+                  <span>+</span>
+                  <strong>Tải ảnh</strong>
+                </button>
+              </div>
+
+              <label id="humanDropzone" class="source-stage human-preview-stage">
+                <img id="humanPreview" alt="Preview ảnh người dùng">
+                <video id="cameraVideo" playsinline muted></video>
+                <canvas id="maskCanvas"></canvas>
+                <div id="canvasEmpty" class="canvas-empty">
+                  <strong>Chưa có ảnh</strong>
+                  <span>Chọn mẫu hoặc tải ảnh rõ người.</span>
+                </div>
+                <div class="canvas-overlay">
+                  <span class="overlay-chip">Auto</span>
+                  <span id="maskModeNote" class="overlay-note">Đang dùng auto-mask</span>
+                </div>
+                <input id="humanInput" type="file" accept="image/*" aria-describedby="humanHint">
+              </label>
+              <p id="humanHint" class="source-hint">Ảnh hợp lệ: thấy rõ người, không quá tối, không bị che khuất.</p>
+            </article>
+
+            <article class="simple-step control-card">
+              <div class="compact-head">
+                <span class="step-number">2</span>
+                <div>
+                  <p class="panel-kicker">Trang phục</p>
+                  <h3 id="sourceTitle">Chọn áo</h3>
+                </div>
+              </div>
+
+              <div class="modal-product-info selected-brief">
+                <span id="selectedGarmentSourceLabel">Từ shop</span>
+                <strong id="selectedGarmentTitle">-</strong>
+              </div>
+
+              <div id="shopGarmentBlock" class="garment-stack">
+                <div id="tryonProductList" class="garment-choice-grid" aria-label="Chọn sản phẩm"></div>
+                <div id="tryonProductSwatches" class="swatch-row compact" aria-label="Chọn màu"></div>
+              </div>
+
+              <div class="garment-source-switch technical-switch" aria-label="Nguồn áo">
+                <button id="shopGarmentModeButton" class="mode-chip is-selected" type="button">Shop</button>
+                <button id="uploadGarmentModeButton" class="mode-chip" type="button">Tải ảnh áo</button>
+              </div>
+
+              <div id="uploadGarmentBlock" class="garment-stack" hidden>
+                <label id="garmentDropzone" class="source-stage garment-upload-stage compact-upload">
+                  <img id="garmentUploadPreview" alt="Preview áo tải lên">
+                  <div class="canvas-empty">
+                    <strong>Tải ảnh áo</strong>
+                    <span>Ảnh chụp thẳng, nền gọn.</span>
+                  </div>
+                  <input id="garmentInput" type="file" accept="image/*">
+                </label>
+              </div>
+              <button id="uploadGarmentButton" class="ghost-button full-width" type="button">Dùng ảnh áo riêng</button>
+              <p id="garmentModeCaption" class="source-hint">Dùng item đã chọn từ shop.</p>
+              <div id="garmentPreviewFrame" class="sr-only">
+                <img id="garmentPreview" alt="Ảnh áo từ shop">
+              </div>
+            </article>
+
+            <details class="drawer-card settings-card advanced-settings">
+              <summary>
+                <span>Cài đặt nâng cao</span>
+                <small>Kết nối AI, camera, mask</small>
+              </summary>
+              <div class="drawer-content">
+                <div class="source-actions">
+                  <button id="openCameraButton" class="secondary-button" type="button">Mở camera</button>
+                  <button id="captureButton" class="ghost-button" type="button" hidden>Chụp</button>
+                  <button id="stopCameraButton" class="ghost-button" type="button" hidden>Dừng</button>
+                </div>
+
+                <div class="field-block">
+                  <label for="promptInput">Prompt</label>
+                  <textarea
+                    id="promptInput"
+                    rows="3"
+                    placeholder="Short sleeve round-neck T-shirt, white cotton, relaxed fit"
+                  ></textarea>
+                </div>
+
+                <div class="toggle-grid">
+                  <label class="toggle">
+                    <input id="autoMaskToggle" type="checkbox" checked>
+                    <span>Use auto-mask</span>
+                  </label>
+                  <label class="toggle">
+                    <input id="autoCropToggle" type="checkbox">
+                    <span>Auto crop subject</span>
+                  </label>
+                </div>
+
+                <div class="advanced-grid">
+                  <label>
+                    <span>Denoise steps</span>
+                    <input id="stepsInput" type="number" min="20" max="40" step="1" value="30">
+                  </label>
+                  <label>
+                    <span>Seed</span>
+                    <input id="seedInput" type="number" min="-1" step="1" value="42">
+                  </label>
+                </div>
+
+                <div class="brush-row">
+                  <label for="brushSizeInput">
+                    <span>Brush size</span>
+                    <strong id="brushValue">28px</strong>
+                  </label>
+                  <input id="brushSizeInput" type="range" min="8" max="72" value="28">
+                </div>
+
+                <button id="clearMaskButton" class="ghost-button full-width" type="button">Clear mask</button>
+              </div>
+            </details>
+          </section>
+
+          <section class="tryon-result visual-result-column" aria-labelledby="resultTitle">
+            <div class="result-topline">
+              <div>
+                <p class="panel-kicker">Kết quả</p>
+                <h3 id="resultTitle">Visual thử đồ</h3>
+              </div>
+              <button id="runButton" class="primary-button large" type="button" disabled>Mặc thử</button>
+            </div>
+
+            <div class="compare-card">
+              <div id="compareFrame" class="compare-frame empty">
+                <img id="beforeImage" class="compare-before" alt="Ảnh trước khi thử đồ">
+                <div id="afterReveal" class="compare-after-reveal">
+                  <img id="afterImage" class="compare-after" alt="Ảnh sau khi thử đồ">
+                </div>
+                <div id="compareDivider" class="compare-divider"></div>
+                <div class="compare-skeleton" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="compare-empty">
+                  <span>Chọn người mẫu và áo để bắt đầu.</span>
+                </div>
+                <div id="loadingOverlay" class="loading-overlay" hidden>
+                  <div class="loading-card">
+                    <div class="hanger-mark">
+                      <span class="hanger-hook"></span>
+                      <span class="hanger-body"></span>
+                    </div>
+                    <strong>AI đang dựng bản thử đồ</strong>
+                    <p id="progressText">Đang phân tích form dáng cơ thể…</p>
+                  </div>
+                </div>
+              </div>
+
+              <label class="slider-wrap compare-toggle" for="compareSlider">
+                <span>Ảnh gốc</span>
+                <input id="compareSlider" type="range" min="0" max="100" value="55" disabled>
+                <span>Kết quả</span>
+              </label>
+            </div>
+
+            <div id="statusBanner" class="status-banner idle" role="status" aria-live="polite">
+              Chọn người mẫu và áo để bắt đầu.
+            </div>
+
+            <div class="commerce-panel">
+              <div class="result-product-copy">
+                <span>Sản phẩm đang thử</span>
+                <strong id="resultProductName">-</strong>
+                <small id="resultProductPrice">-</small>
+              </div>
+              <div class="footer-block">
+                <span>Size</span>
+                <div id="modalSizeOptions" class="size-row compact" aria-label="Chọn size"></div>
+              </div>
+              <button id="modalAddToCartButton" class="secondary-button buy-now" type="button">Thêm vào giỏ hàng</button>
+            </div>
+
+            <div class="readiness-list compact-status sr-only" aria-label="Trạng thái sẵn sàng">
+              <span id="remoteReadyItem">Kết nối</span>
+              <span id="humanReadyItem">Ảnh người</span>
+              <span id="garmentReadyItem">Áo</span>
+              <span id="maskReadyItem">Mask</span>
+            </div>
+
+            <details class="drawer-card result-details">
+              <summary>
+                <span>Xem chi tiết kết quả</span>
+                <small>Mask preview</small>
+              </summary>
+              <div class="secondary-grid drawer-content">
+                <div class="result-card">
+                  <div class="result-card-head">
+                    <h4>Mask</h4>
+                    <span id="seedBadge">seed 42</span>
+                  </div>
+                  <img id="maskPreview" alt="Mask preview">
+                </div>
+                <div class="result-card notes">
+                  <h4>Ghi chú</h4>
+                  <ul>
+                    <li>Ảnh rõ người cho kết quả ổn định hơn.</li>
+                    <li>Ảnh áo nền sạch giúp model nhận diện tốt hơn.</li>
+                  </ul>
+                </div>
+              </div>
+            </details>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <div id="cartToast" class="cart-toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/static/js/tryon.js"></script>
+  </body>
+</html>

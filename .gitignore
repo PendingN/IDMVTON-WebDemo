@@ -1,0 +1,45 @@
+# Python cache and local runtime
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and local secrets
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Large model/data artifacts
+ckpt/
+checkpoints/
+models/
+outputs/
+runs/
+logs/
+wandb/
+*.ckpt
+*.safetensors
+*.pth
+*.pt
+*.onnx
+*.bin
+
+# Local backups and generated packages
+backup/
+web_demo_backup/
+*.zip
+*.7z
+*.rar
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary notebooks with execution logs
+nckh_tunnel.ipynb
