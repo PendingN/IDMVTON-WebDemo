@@ -110,6 +110,7 @@ function updateHeroCompare(value = heroCompareValue) {
   heroCompareValue = Math.max(0, Math.min(value, 100));
   heroAfterReveal.style.clipPath = `inset(0 ${100 - heroCompareValue}% 0 0)`;
   heroDivider.style.left = `${heroCompareValue}%`;
+  landingCompare?.setAttribute("aria-valuenow", String(Math.round(heroCompareValue)));
 }
 
 function updateHeroCompareFromPointer(clientX) {
@@ -144,6 +145,18 @@ function setupHeroCompareDrag() {
     isHeroCompareDragging = false;
   });
 
+  landingCompare.addEventListener("keydown", (event) => {
+    const step = event.shiftKey ? 10 : 5;
+    if (event.key === "ArrowLeft") {
+      updateHeroCompare(heroCompareValue - step);
+      event.preventDefault();
+    }
+    if (event.key === "ArrowRight") {
+      updateHeroCompare(heroCompareValue + step);
+      event.preventDefault();
+    }
+  });
+
   updateHeroCompare(heroCompareValue);
 }
 
@@ -154,11 +167,13 @@ function setHeroImages(data) {
   [heroBeforeHuman, heroAfterHuman].forEach((image) => {
     if (image && human) {
       image.src = human;
+      image.decoding = "async";
     }
   });
   [heroBeforeGarment, heroAfterGarment, techPatternImage].forEach((image) => {
     if (image && garment) {
       image.src = garment;
+      image.decoding = "async";
     }
   });
 }
@@ -250,6 +265,7 @@ function createStressEditorialPanel({ tab, item, caseNumber }) {
   proof.textContent = tab.kicker;
   media.className = "stress-editorial-media";
   media.tabIndex = 0;
+  media.setAttribute("aria-label", `${item.title}: ${item.note}`);
   media.addEventListener("pointerenter", () => media.classList.add("is-compositing"));
   media.addEventListener("pointerleave", () => media.classList.remove("is-compositing"));
   media.addEventListener("focus", () => media.classList.add("is-compositing"));
@@ -257,10 +273,18 @@ function createStressEditorialPanel({ tab, item, caseNumber }) {
   human.src = item.human;
   human.alt = `${item.title} - người mẫu stress-test`;
   human.className = "stress-editorial-human";
+  human.width = 720;
+  human.height = 900;
+  human.loading = "lazy";
+  human.decoding = "async";
   scan.className = "stress-editorial-scan";
   garment.src = item.garment;
   garment.alt = `${item.title} - trang phục cần giữ chi tiết`;
   garment.className = "stress-editorial-garment";
+  garment.width = 360;
+  garment.height = 450;
+  garment.loading = "lazy";
+  garment.decoding = "async";
   mediaLabel.textContent = tab.kicker;
 
   copy.append(eyebrow, title, note, proof);

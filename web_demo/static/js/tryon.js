@@ -165,13 +165,13 @@ function getCurrentGarmentSource() {
 
 function getCurrentGarmentLabel() {
   if (state.garmentMode === "upload") {
-    return state.uploadedGarmentSource ? prettifyAssetName(state.uploadedGarmentSource.name) : "Chưa có garment";
+    return state.uploadedGarmentSource ? prettifyAssetName(state.uploadedGarmentSource.name) : "Chưa có áo";
   }
 
   const product = getSelectedProduct();
   const variant = getSelectedVariant();
   if (!product || !variant) {
-    return "Chưa có shop item";
+    return "Chưa có sản phẩm";
   }
   return `${product.name} / ${variant.label}`;
 }
@@ -331,7 +331,7 @@ function updateTryOnSummary() {
   resultProductPrice.textContent = state.garmentMode === "shop" && shopProduct ? shopProduct.price : "Ảnh áo riêng";
   garmentModeCaption.textContent =
     state.garmentMode === "shop"
-      ? "Dùng item đang chọn từ shop."
+      ? "Dùng sản phẩm đang chọn từ shop."
       : "Dùng ảnh áo bạn tải lên.";
 
   shopGarmentModeButton.classList.toggle("is-selected", state.garmentMode === "shop");
@@ -347,7 +347,7 @@ function updateTryOnSummary() {
         : `${garmentLabel} / ảnh tải lên`;
   } else if (state.catalogHeroImage) {
     tryonHeroImage.src = state.catalogHeroImage;
-    tryonHeroNote.textContent = "Chọn sản phẩm từ shop hoặc tải ảnh garment riêng để bắt đầu.";
+    tryonHeroNote.textContent = "Chọn sản phẩm từ shop hoặc tải ảnh áo riêng để bắt đầu.";
   }
 
   if (state.garmentMode === "shop" && shopVariant) {
@@ -367,7 +367,7 @@ function updateTryOnSummary() {
   }
 
   modalAddToCartButton.disabled = state.garmentMode !== "shop";
-  modalAddToCartButton.textContent = state.garmentMode === "shop" ? "Thêm vào giỏ" : "Không phải item shop";
+  modalAddToCartButton.textContent = state.garmentMode === "shop" ? "Thêm vào giỏ" : "Không phải sản phẩm shop";
   uploadGarmentButton.textContent = state.garmentMode === "upload" ? "Đổi ảnh áo riêng" : "Dùng ảnh áo riêng";
 }
 
@@ -468,8 +468,14 @@ function renderProductPills() {
     button.type = "button";
     button.className = "product-pill";
     button.classList.toggle("is-selected", index === state.selectedProductIndex);
+    button.setAttribute("aria-pressed", index === state.selectedProductIndex ? "true" : "false");
+    button.setAttribute("aria-label", `Chọn ${product.name}`);
     image.src = variant?.url || "";
     image.alt = product.name;
+    image.width = 320;
+    image.height = 400;
+    image.loading = "lazy";
+    image.decoding = "async";
     name.textContent = product.name;
     price.textContent = product.price;
     button.append(image, name, price);
@@ -494,6 +500,8 @@ function renderSwatches() {
     button.type = "button";
     button.className = "swatch";
     button.classList.toggle("is-selected", variantIndex === state.selectedVariantIndex);
+    button.setAttribute("aria-pressed", variantIndex === state.selectedVariantIndex ? "true" : "false");
+    button.setAttribute("aria-label", `Chọn màu ${variant.label}`);
 
     dot.className = "swatch-dot";
     dot.style.background = variant.color;
@@ -516,6 +524,8 @@ function renderSizeOptions() {
     button.type = "button";
     button.className = "size-chip";
     button.classList.toggle("is-selected", size === state.selectedSize);
+    button.setAttribute("aria-pressed", size === state.selectedSize ? "true" : "false");
+    button.setAttribute("aria-label", `Chọn size ${size}`);
     button.textContent = size;
     button.addEventListener("click", () => {
       state.selectedSize = size;
@@ -763,9 +773,14 @@ function buildHumanExampleTile(item) {
   button.type = "button";
   button.className = "example-tile";
   button.setAttribute("aria-pressed", "false");
+  button.setAttribute("aria-label", `Chọn mẫu người ${prettyName}`);
 
   image.src = item.url;
   image.alt = prettyName;
+  image.width = 128;
+  image.height = 128;
+  image.loading = "lazy";
+  image.decoding = "async";
 
   meta.className = "example-meta";
   kicker.className = "example-kicker";
@@ -1025,7 +1040,7 @@ function handleGarmentFile(file) {
     return;
   }
   if (!file.type.startsWith("image/")) {
-    setStatus("Garment phải là file ảnh.", "error");
+    setStatus("Ảnh áo phải là file ảnh.", "error");
     return;
   }
 
@@ -1037,7 +1052,7 @@ function handleGarmentFile(file) {
 
 function addToCart() {
   if (state.garmentMode !== "shop") {
-    showToast("Garment upload riêng không thuộc catalog shop để thêm vào giỏ.");
+    showToast("Ảnh áo tải lên không thuộc catalog shop để thêm vào giỏ.");
     return;
   }
 

@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f7f3">
     <title>Locomode | IDM-VTON Commerce Landing</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +14,7 @@
     <link rel="stylesheet" href="/static/css/styles.css">
   </head>
   <body>
+    <a class="skip-link" href="#mainContent">Bỏ qua điều hướng</a>
     <div class="page-shell landing-spec-page">
       <header class="site-header">
         <a class="brand-mark" href="/">Locomode</a>
@@ -25,7 +27,7 @@
         <a class="cart-pill page-link-button" href="/try-on">Thử ngay</a>
       </header>
 
-      <main>
+      <main id="mainContent">
         <section class="landing-hero-v2" id="hero" aria-labelledby="heroTitle">
           <div class="hero-copy-v2 reveal-item is-visible" data-reveal>
             <p class="landing-badge">
@@ -45,15 +47,24 @@
           </div>
 
           <div class="hero-compare-card reveal-item is-visible" data-reveal>
-            <div class="landing-compare" id="landingCompare">
+            <div
+              class="landing-compare"
+              id="landingCompare"
+              role="slider"
+              tabindex="0"
+              aria-label="So sánh trước và sau khi thử đồ"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="50"
+            >
               <div class="compare-scene compare-scene-before">
-                <img id="heroBeforeHuman" class="compare-human" alt="Người mẫu trước khi thử đồ">
-                <img id="heroBeforeGarment" class="compare-flatlay" alt="Ảnh áo đặt riêng">
+                <img id="heroBeforeHuman" class="compare-human" width="720" height="900" fetchpriority="high" alt="Người mẫu trước khi thử đồ">
+                <img id="heroBeforeGarment" class="compare-flatlay" width="480" height="600" alt="Ảnh áo đặt riêng">
                 <span class="fabric-tag">Ảnh áo</span>
               </div>
               <div class="compare-scene compare-scene-after" id="heroAfterReveal">
-                <img id="heroAfterHuman" class="compare-human" alt="Người mẫu sau khi thử đồ">
-                <img id="heroAfterGarment" class="compare-garment-overlay" alt="Lớp trang phục mô phỏng">
+                <img id="heroAfterHuman" class="compare-human" width="720" height="900" fetchpriority="high" alt="Người mẫu sau khi thử đồ">
+                <img id="heroAfterGarment" class="compare-garment-overlay" width="480" height="600" alt="Lớp trang phục mô phỏng">
                 <span class="fabric-tag">Giữ phom vải</span>
               </div>
               <div class="landing-divider" id="heroDivider">
@@ -111,7 +122,7 @@
           </div>
           <article class="tech-row">
             <div class="tech-visual fidelity-zoom">
-              <img id="techPatternImage" alt="Chi tiết hoa văn trên vải">
+              <img id="techPatternImage" width="720" height="540" loading="lazy" alt="Chi tiết hoa văn trên vải">
               <span>Giữ chi tiết vải</span>
             </div>
             <div class="tech-copy">
@@ -143,7 +154,7 @@
           <p>Đăng ký ngay hôm nay để nhận 100 lượt thử API miễn phí và tài liệu tích hợp chi tiết.</p>
           <form class="api-form">
             <label for="apiEmail">Email của bạn</label>
-            <input id="apiEmail" type="email" placeholder="founder@fashion.vn" required>
+            <input id="apiEmail" name="email" type="email" autocomplete="email" placeholder="founder@fashion.vn…" required>
             <button type="submit">Nhận khóa API</button>
           </form>
         </section>

@@ -3,33 +3,36 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Locomode | Virtual Try-On</title>
+    <meta name="theme-color" content="#f7f7f3">
+    <title>Locomode | Thử đồ ảo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Lora:wght@500;600;700&display=swap"
       rel="stylesheet"
     >
     <link rel="stylesheet" href="/static/css/styles.css">
   </head>
   <body>
+    <a class="skip-link" href="#mainContent">Bỏ qua điều hướng</a>
     <div class="page-shell">
       <header class="site-header">
         <a class="brand-mark" href="/">Locomode</a>
         <nav class="header-links" aria-label="Điều hướng">
-          <a href="/">Landing</a>
-          <a href="/shop">Shop</a>
-          <a href="/try-on">Try-On</a>
+          <a href="/">Trang chủ</a>
+          <a href="/shop">Sản phẩm</a>
+          <a href="/try-on">Thử đồ</a>
         </nav>
         <button id="headerCartButton" class="cart-pill" type="button">
-          Cart
+          Giỏ hàng
           <span id="cartCountBadge">0</span>
         </button>
       </header>
 
-      <section class="hero">
+      <main id="mainContent">
+        <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Virtual Try-On</p>
+          <p class="eyebrow">Thử đồ ảo</p>
           <h1>Chọn áo. Tải ảnh. Xem kết quả.</h1>
           <p class="hero-text">
             Giao diện thử đồ được rút gọn còn ba thao tác chính. Các tuỳ chỉnh kỹ thuật nằm riêng ở cuối trang.
@@ -41,19 +44,19 @@
         </div>
 
         <div class="hero-visual" aria-hidden="true">
-          <img id="tryonHeroImage" alt="Try-on garment preview">
-          <div class="hero-floating hero-badge">Shop + Upload</div>
-          <div id="tryonHeroNote" class="hero-floating hero-note">Chọn nguồn garment để bắt đầu.</div>
+          <img id="tryonHeroImage" width="520" height="650" fetchpriority="high" alt="Xem trước áo để thử đồ">
+          <div class="hero-floating hero-badge">Shop + Tải ảnh</div>
+          <div id="tryonHeroNote" class="hero-floating hero-note">Chọn nguồn áo để bắt đầu.</div>
         </div>
       </section>
 
       <section class="tryon-workbench" id="tryonWorkbench" aria-labelledby="workbenchTitle">
         <div class="modal-header tryon-page-head">
           <div>
-            <p class="panel-kicker">Try-On Flow</p>
+            <p class="panel-kicker">Luồng thử đồ</p>
             <h2 id="workbenchTitle">Phòng thử đồ</h2>
           </div>
-          <a class="ghost-button page-link-button" href="/shop">Back To Shop</a>
+          <a class="ghost-button page-link-button" href="/shop">Về shop</a>
         </div>
 
         <section class="api-setup-panel" aria-labelledby="apiSetupTitle">
@@ -76,10 +79,10 @@
                 autocomplete="off"
                 spellcheck="false"
                 aria-describedby="remoteUrlHelp remoteUrlFeedback"
-                placeholder="https://your-bridge.trycloudflare.com…"
+                placeholder="https://bridge.example.com…"
               >
               <button id="pasteRemoteButton" class="ghost-button slim" type="button">Dán link</button>
-              <button id="checkRemoteButton" class="secondary-button slim" type="button">Test API</button>
+              <button id="checkRemoteButton" class="secondary-button slim" type="button">Kiểm tra API</button>
             </div>
             <div class="api-quick-row" aria-label="API preset">
               <button class="api-preset-chip" type="button" data-remote-url="http://127.0.0.1:7862">Local 7862</button>
@@ -112,7 +115,7 @@
               </div>
 
               <label id="humanDropzone" class="source-stage human-preview-stage">
-                <img id="humanPreview" alt="Preview ảnh người dùng">
+                <img id="humanPreview" width="520" height="650" alt="Xem trước ảnh người dùng">
                 <video id="cameraVideo" playsinline muted></video>
                 <canvas id="maskCanvas"></canvas>
                 <div id="canvasEmpty" class="canvas-empty">
@@ -123,7 +126,7 @@
                   <span class="overlay-chip">Auto</span>
                   <span id="maskModeNote" class="overlay-note">Đang dùng auto-mask</span>
                 </div>
-                <input id="humanInput" type="file" accept="image/*" aria-describedby="humanHint">
+                <input id="humanInput" name="human_image" type="file" accept="image/*" aria-describedby="humanHint">
               </label>
               <p id="humanHint" class="source-hint">Ảnh hợp lệ: thấy rõ người, không quá tối, không bị che khuất.</p>
             </article>
@@ -154,18 +157,18 @@
 
               <div id="uploadGarmentBlock" class="garment-stack" hidden>
                 <label id="garmentDropzone" class="source-stage garment-upload-stage compact-upload">
-                  <img id="garmentUploadPreview" alt="Preview áo tải lên">
+                  <img id="garmentUploadPreview" width="520" height="650" alt="Xem trước áo tải lên">
                   <div class="canvas-empty">
                     <strong>Tải ảnh áo</strong>
                     <span>Ảnh chụp thẳng, nền gọn.</span>
                   </div>
-                  <input id="garmentInput" type="file" accept="image/*">
+                  <input id="garmentInput" name="garment_image" type="file" accept="image/*">
                 </label>
               </div>
               <button id="uploadGarmentButton" class="ghost-button full-width" type="button">Dùng ảnh áo riêng</button>
-              <p id="garmentModeCaption" class="source-hint">Dùng item đã chọn từ shop.</p>
+              <p id="garmentModeCaption" class="source-hint">Dùng sản phẩm đã chọn từ shop.</p>
               <div id="garmentPreviewFrame" class="sr-only">
-                <img id="garmentPreview" alt="Ảnh áo từ shop">
+                <img id="garmentPreview" width="480" height="600" alt="Ảnh áo từ shop">
               </div>
             </article>
 
@@ -185,42 +188,44 @@
                   <label for="promptInput">Prompt</label>
                   <textarea
                     id="promptInput"
+                    name="garment_description"
                     rows="3"
-                    placeholder="Short sleeve round-neck T-shirt, white cotton, relaxed fit"
+                    autocomplete="off"
+                    placeholder="Short sleeve round-neck T-shirt, white cotton, relaxed fit…"
                   ></textarea>
                 </div>
 
                 <div class="toggle-grid">
                   <label class="toggle">
-                    <input id="autoMaskToggle" type="checkbox" checked>
-                    <span>Use auto-mask</span>
+                    <input id="autoMaskToggle" name="auto_mask" type="checkbox" checked>
+                    <span>Dùng auto-mask</span>
                   </label>
                   <label class="toggle">
-                    <input id="autoCropToggle" type="checkbox">
-                    <span>Auto crop subject</span>
+                    <input id="autoCropToggle" name="auto_crop" type="checkbox">
+                    <span>Tự crop chủ thể</span>
                   </label>
                 </div>
 
                 <div class="advanced-grid">
                   <label>
-                    <span>Denoise steps</span>
-                    <input id="stepsInput" type="number" min="20" max="40" step="1" value="30">
+                    <span>Số bước denoise</span>
+                    <input id="stepsInput" name="denoise_steps" type="number" inputmode="numeric" min="20" max="40" step="1" value="30">
                   </label>
                   <label>
                     <span>Seed</span>
-                    <input id="seedInput" type="number" min="-1" step="1" value="42">
+                    <input id="seedInput" name="seed" type="number" inputmode="numeric" min="-1" step="1" value="42">
                   </label>
                 </div>
 
                 <div class="brush-row">
                   <label for="brushSizeInput">
-                    <span>Brush size</span>
+                    <span>Cỡ cọ</span>
                     <strong id="brushValue">28px</strong>
                   </label>
-                  <input id="brushSizeInput" type="range" min="8" max="72" value="28">
+                  <input id="brushSizeInput" name="brush_size" type="range" min="8" max="72" value="28">
                 </div>
 
-                <button id="clearMaskButton" class="ghost-button full-width" type="button">Clear mask</button>
+                <button id="clearMaskButton" class="ghost-button full-width" type="button">Xóa mask</button>
               </div>
             </details>
           </section>
@@ -229,16 +234,16 @@
             <div class="result-topline">
               <div>
                 <p class="panel-kicker">Kết quả</p>
-                <h3 id="resultTitle">Visual thử đồ</h3>
+                <h3 id="resultTitle">Ảnh thử đồ</h3>
               </div>
               <button id="runButton" class="primary-button large" type="button" disabled>Mặc thử</button>
             </div>
 
             <div class="compare-card">
               <div id="compareFrame" class="compare-frame empty">
-                <img id="beforeImage" class="compare-before" alt="Ảnh trước khi thử đồ">
+                <img id="beforeImage" class="compare-before" width="720" height="960" alt="Ảnh trước khi thử đồ">
                 <div id="afterReveal" class="compare-after-reveal">
-                  <img id="afterImage" class="compare-after" alt="Ảnh sau khi thử đồ">
+                  <img id="afterImage" class="compare-after" width="720" height="960" alt="Ảnh sau khi thử đồ">
                 </div>
                 <div id="compareDivider" class="compare-divider"></div>
                 <div class="compare-skeleton" aria-hidden="true">
@@ -263,7 +268,7 @@
 
               <label class="slider-wrap compare-toggle" for="compareSlider">
                 <span>Ảnh gốc</span>
-                <input id="compareSlider" type="range" min="0" max="100" value="55" disabled>
+                <input id="compareSlider" name="compare_slider" type="range" min="0" max="100" value="55" disabled>
                 <span>Kết quả</span>
               </label>
             </div>
@@ -295,7 +300,7 @@
             <details class="drawer-card result-details">
               <summary>
                 <span>Xem chi tiết kết quả</span>
-                <small>Mask preview</small>
+                <small>Xem mask</small>
               </summary>
               <div class="secondary-grid drawer-content">
                 <div class="result-card">
@@ -303,7 +308,7 @@
                     <h4>Mask</h4>
                     <span id="seedBadge">seed 42</span>
                   </div>
-                  <img id="maskPreview" alt="Mask preview">
+                  <img id="maskPreview" width="480" height="640" loading="lazy" alt="Xem trước mask">
                 </div>
                 <div class="result-card notes">
                   <h4>Ghi chú</h4>
@@ -317,6 +322,7 @@
           </section>
         </div>
       </section>
+      </main>
     </div>
 
     <div id="cartToast" class="cart-toast" role="status" aria-live="polite"></div>

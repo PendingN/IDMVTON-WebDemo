@@ -3,59 +3,62 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f7f3">
     <title>Locomode | Shop</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&family=Lora:wght@500;600;700&display=swap"
       rel="stylesheet"
     >
     <link rel="stylesheet" href="/static/css/styles.css">
   </head>
   <body>
+    <a class="skip-link" href="#mainContent">Bỏ qua điều hướng</a>
     <div class="page-shell">
       <header class="site-header">
         <a class="brand-mark" href="/">Locomode</a>
         <nav class="header-links" aria-label="Điều hướng">
-          <a href="/">Landing</a>
-          <a href="#collection">Collection</a>
-          <a href="#pdp">PDP</a>
-          <button id="headerTryOnButton" class="nav-link-button" type="button">Try-On</button>
+          <a href="/">Trang chủ</a>
+          <a href="#collection">Bộ sưu tập</a>
+          <a href="#pdp">Chi tiết</a>
+          <button id="headerTryOnButton" class="nav-link-button" type="button">Thử đồ</button>
         </nav>
         <button id="headerCartButton" class="cart-pill" type="button">
-          Cart
+          Giỏ hàng
           <span id="cartCountBadge">0</span>
         </button>
       </header>
 
-      <section class="hero">
+      <main id="mainContent">
+        <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Shopping Page</p>
+          <p class="eyebrow">Trang mua sắm</p>
           <h1>Chọn món đồ hỗ trợ thử ảo rồi đi thẳng vào quyết định mua.</h1>
           <p class="hero-text">
-            Đây là trang shopping thực thụ: collection để lướt sản phẩm, PDP để chốt màu và size, và một CTA mở phòng
-            thử đồ riêng với đúng item đang được quan tâm.
+            Đây là trang mua sắm thực thụ: bộ sưu tập để lướt sản phẩm, trang chi tiết để chốt màu và size,
+            rồi mở phòng thử đồ với đúng món đang được quan tâm.
           </p>
           <div class="hero-actions">
-            <a class="hero-button primary" href="#collection">Lướt collection</a>
-            <button id="openTryOnButton" class="hero-button secondary" type="button">Mở virtual try-on</button>
+            <a class="hero-button primary" href="#collection">Lướt bộ sưu tập</a>
+            <button id="openTryOnButton" class="hero-button secondary" type="button">Mở phòng thử đồ</button>
           </div>
         </div>
 
         <div class="hero-visual" aria-hidden="true">
-          <img id="shopHeroImage" alt="Selected collection preview">
+          <img id="shopHeroImage" width="520" height="650" fetchpriority="high" alt="Xem trước sản phẩm đang chọn">
           <div class="hero-floating hero-badge">Hỗ trợ thử ảo</div>
-          <div id="shopHeroMeta" class="hero-floating hero-note">Chọn item để cập nhật selection hiện tại.</div>
+          <div id="shopHeroMeta" class="hero-floating hero-note">Chọn sản phẩm để cập nhật lựa chọn hiện tại.</div>
         </div>
       </section>
 
       <section class="collection-section" id="collection" aria-labelledby="collectionTitle">
         <div class="section-head">
           <div>
-            <p class="panel-kicker">Step 01</p>
+            <p class="panel-kicker">Bước 01</p>
             <h2 id="collectionTitle">Lướt bộ sưu tập.</h2>
           </div>
-          <p>Những sản phẩm có thử ảo đều được gắn badge ngay trên card.</p>
+          <p>Những sản phẩm có thử ảo đều được gắn nhãn ngay trên thẻ sản phẩm.</p>
         </div>
 
         <div id="productGrid" class="product-grid" aria-label="Danh sách sản phẩm"></div>
@@ -63,14 +66,14 @@
 
       <section class="pdp-section" id="pdp" aria-labelledby="pdpTitle">
         <div class="pdp-media">
-          <span class="tryon-badge large">Virtual Try-On Ready</span>
-          <img id="pdpImage" alt="Ảnh sản phẩm đang chọn">
+          <span class="tryon-badge large">Sẵn sàng thử ảo</span>
+          <img id="pdpImage" width="720" height="900" loading="lazy" alt="Ảnh sản phẩm đang chọn">
         </div>
 
         <div class="pdp-copy">
-          <p class="panel-kicker">Step 02 / PDP</p>
+          <p class="panel-kicker">Bước 02 / Chi tiết</p>
           <h2 id="pdpTitle">Trang chi tiết sản phẩm.</h2>
-          <h3 id="pdpProductName">Loading...</h3>
+          <h3 id="pdpProductName" aria-live="polite">Đang tải…</h3>
           <p id="pdpProductPrice" class="product-price">-</p>
           <p id="pdpProductDescription" class="product-description">-</p>
 
@@ -90,6 +93,7 @@
           </div>
         </div>
       </section>
+      </main>
     </div>
 
     <div id="cartToast" class="cart-toast" role="status" aria-live="polite"></div>

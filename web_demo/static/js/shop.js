@@ -92,6 +92,8 @@ function renderSizeOptions() {
     button.type = "button";
     button.className = "size-chip";
     button.classList.toggle("is-selected", size === state.selectedSize);
+    button.setAttribute("aria-pressed", size === state.selectedSize ? "true" : "false");
+    button.setAttribute("aria-label", `Chọn size ${size}`);
     button.textContent = size;
     button.addEventListener("click", () => {
       state.selectedSize = size;
@@ -118,6 +120,8 @@ function renderSwatches() {
     button.type = "button";
     button.className = "swatch";
     button.classList.toggle("is-selected", variantIndex === state.selectedVariantIndex);
+    button.setAttribute("aria-pressed", variantIndex === state.selectedVariantIndex ? "true" : "false");
+    button.setAttribute("aria-label", `Chọn phiên bản ${variant.label}`);
 
     dot.className = "swatch-dot";
     dot.style.background = variant.color;
@@ -148,10 +152,16 @@ function renderCollection() {
     button.type = "button";
     button.className = "product-card";
     button.classList.toggle("is-selected", index === state.selectedProductIndex);
+    button.setAttribute("aria-pressed", index === state.selectedProductIndex ? "true" : "false");
+    button.setAttribute("aria-label", `Xem ${product.name}`);
 
     imageWrap.className = "product-card-image";
     image.src = product.variants[0].url;
     image.alt = product.name;
+    image.width = 480;
+    image.height = 600;
+    image.loading = "lazy";
+    image.decoding = "async";
 
     badge.className = "product-card-badge";
     badge.textContent = "Hỗ trợ thử ảo";

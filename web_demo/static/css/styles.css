@@ -29,17 +29,23 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 96px;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   color: var(--ink);
   font-family: var(--body);
   line-height: 1.5;
   background:
     radial-gradient(circle at 14% 8%, rgba(95, 136, 103, 0.12), transparent 22%),
     linear-gradient(180deg, #f8f8f4, #edf1ec 58%, #f3f1ec);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: rgba(18, 52, 26, 0.14);
 }
 
 body::before {
@@ -84,6 +90,7 @@ a {
   text-decoration: none;
 }
 
+a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -91,9 +98,36 @@ summary:focus-visible,
 .product-card:focus-visible,
 .swatch:focus-visible,
 .size-chip:focus-visible,
+.mode-chip:focus-visible,
+.product-pill:focus-visible,
+.api-preset-chip:focus-visible,
+.example-tile:focus-visible,
+.upload-avatar-tile:focus-visible,
+.landing-compare:focus-visible,
+.stress-editorial-media:focus-visible,
 .source-stage:focus-within {
   outline: 3px solid rgba(18, 52, 26, 0.24);
   outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: 12px;
+  z-index: 100;
+  transform: translateY(-140%);
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: #f8f7f2;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 14px 30px rgba(21, 21, 21, 0.18);
+  transition: transform 180ms var(--ease);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 
 button:disabled,
@@ -1709,6 +1743,7 @@ input:disabled {
 
 textarea,
 input[type="number"],
+input[type="email"],
 input[type="url"],
 .connection-row input {
   width: 100%;
@@ -2051,6 +2086,448 @@ h4,
 .size-chip,
 #seedBadge {
   letter-spacing: 0;
+}
+
+/* Final readability overrides: keep type and controls stable after legacy sections above. */
+.brand-mark {
+  font-size: 2.35rem;
+  line-height: 1;
+}
+
+.header-links a,
+.nav-link-button,
+.cart-pill {
+  text-transform: none;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hero h1 {
+  max-width: 10.8em;
+  font-size: 4.6rem;
+  line-height: 1.05;
+}
+
+.hero-copy-v2 h1 {
+  max-width: 10.2em;
+  font-size: 4rem;
+  line-height: 1.12;
+}
+
+.section-head h2,
+.pdp-copy h2,
+.tryon-page-head h2,
+.roi-dashboard h2,
+.tech-section h2,
+.final-cta h2 {
+  font-size: 3.25rem;
+  line-height: 1.08;
+}
+
+.pdp-copy h3,
+.compact-head h3,
+.result-topline h3,
+.api-setup-copy h3,
+.tech-copy h3,
+.roi-card h3 {
+  font-size: 2.2rem;
+  line-height: 1.08;
+}
+
+@media (max-width: 920px) {
+  .commerce-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .commerce-panel .buy-now {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  html {
+    scroll-padding-top: 16px;
+  }
+
+  .page-shell,
+  .landing-spec-page {
+    width: min(100vw - 16px, 100%);
+  }
+
+  .brand-mark,
+  .landing-spec-page .brand-mark {
+    font-size: 1.9rem;
+  }
+
+  .site-header,
+  .landing-spec-page .site-header {
+    position: static;
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .header-links,
+  .landing-spec-page .header-links {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .header-links a,
+  .nav-link-button,
+  .landing-spec-page .header-links a {
+    min-height: 38px;
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .landing-spec-page .site-header .cart-pill {
+    justify-self: start;
+  }
+
+  .cart-pill,
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .hero-button,
+  .mode-chip,
+  .product-pill {
+    min-height: 44px;
+    padding: 11px 14px;
+  }
+
+  .hero h1,
+  .hero-copy-v2 h1 {
+    max-width: 100%;
+    font-size: 2.2rem;
+    line-height: 1.14;
+    overflow-wrap: anywhere;
+  }
+
+  .section-head h2,
+  .pdp-copy h2,
+  .tryon-page-head h2,
+  .roi-dashboard h2,
+  .tech-section h2,
+  .final-cta h2,
+  .stress-editorial-copy h3 {
+    max-width: 100%;
+    font-size: 2.25rem;
+    line-height: 1.12;
+    overflow-wrap: break-word;
+  }
+
+  .pdp-copy h3,
+  .compact-head h3,
+  .result-topline h3,
+  .api-setup-copy h3,
+  .tech-copy h3,
+  .roi-card h3 {
+    font-size: 1.75rem;
+  }
+
+  .hero-actions,
+  .pdp-actions,
+  .api-input-row,
+  .api-form {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions > *,
+  .pdp-actions > *,
+  .api-input-row > *,
+  .api-form > * {
+    width: 100%;
+  }
+
+  .result-topline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero-visual,
+  .pdp-media,
+  .source-stage,
+  .compare-frame,
+  .landing-compare {
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+  }
+
+  .compare-frame {
+    aspect-ratio: 3 / 4;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero h1,
+  .hero-copy-v2 h1 {
+    font-size: 2.2rem;
+    line-height: 1.14;
+    overflow-wrap: anywhere;
+  }
+
+  .hero-text,
+  .hero-subcopy,
+  .section-head p,
+  .pdp-copy p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-hero-v2,
+  .hero,
+  .collection-section,
+  .pdp-section,
+  .tryon-workbench {
+    overflow: hidden;
+  }
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+p,
+li,
+.hero-text,
+.section-head p,
+.source-hint,
+.status-banner,
+.api-feedback,
+.hero-note {
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.site-header > *,
+.hero-copy,
+.hero-copy-v2,
+.section-head > *,
+.pdp-copy,
+.tech-copy,
+.result-topline > *,
+.result-product-copy,
+.selected-brief,
+.api-setup-copy,
+.api-setup-form,
+.product-card-copy,
+.product-pill,
+.stress-editorial-copy {
+  min-width: 0;
+}
+
+.brand-mark {
+  font-size: 2.35rem;
+  line-height: 1;
+}
+
+.header-links a,
+.nav-link-button,
+.cart-pill {
+  text-transform: none;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hero h1 {
+  max-width: 10.8em;
+  font-size: 4.6rem;
+  line-height: 1.05;
+}
+
+.hero-copy-v2 h1 {
+  max-width: 10.2em;
+  font-size: 4rem;
+  line-height: 1.12;
+}
+
+.section-head h2,
+.pdp-copy h2,
+.tryon-page-head h2,
+.roi-dashboard h2,
+.tech-section h2,
+.final-cta h2 {
+  font-size: 3.25rem;
+  line-height: 1.08;
+}
+
+.pdp-copy h3,
+.compact-head h3,
+.result-topline h3,
+.api-setup-copy h3,
+.tech-copy h3,
+.roi-card h3 {
+  font-size: 2.2rem;
+  line-height: 1.08;
+}
+
+.hero-text,
+.section-head p,
+.pdp-copy p,
+.api-setup-copy p,
+.tech-copy p,
+.roi-card p,
+.final-cta p {
+  line-height: 1.72;
+}
+
+.cart-pill,
+.primary-button,
+.secondary-button,
+.ghost-button,
+.hero-button,
+.mode-chip,
+.product-pill {
+  gap: 8px;
+}
+
+.pdp-media,
+.hero-visual,
+.landing-compare,
+.compare-frame,
+.source-stage,
+.stress-editorial-media,
+.tech-visual {
+  contain: layout paint;
+}
+
+.pdp-media {
+  aspect-ratio: 4 / 5;
+}
+
+.compare-frame {
+  min-height: min(620px, 74vh);
+  aspect-ratio: 3 / 4;
+}
+
+.product-card h3,
+.product-pill strong,
+.result-product-copy strong,
+.selected-brief strong,
+.hero-note {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 920px) {
+  .commerce-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .commerce-panel .buy-now {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  html {
+    scroll-padding-top: 16px;
+  }
+
+  .brand-mark {
+    font-size: 1.9rem;
+  }
+
+  .site-header {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .header-links {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .header-links a,
+  .nav-link-button {
+    min-height: 38px;
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .cart-pill,
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .hero-button,
+  .mode-chip,
+  .product-pill {
+    min-height: 44px;
+    padding: 11px 14px;
+  }
+
+  .hero h1,
+  .hero-copy-v2 h1 {
+    font-size: 2.8rem;
+    line-height: 1.08;
+  }
+
+  .section-head h2,
+  .pdp-copy h2,
+  .tryon-page-head h2,
+  .roi-dashboard h2,
+  .tech-section h2,
+  .final-cta h2 {
+    font-size: 2.25rem;
+    line-height: 1.12;
+  }
+
+  .pdp-copy h3,
+  .compact-head h3,
+  .result-topline h3,
+  .api-setup-copy h3,
+  .tech-copy h3,
+  .roi-card h3 {
+    font-size: 1.75rem;
+  }
+
+  .hero-actions,
+  .pdp-actions,
+  .api-input-row,
+  .api-form {
+    grid-template-columns: 1fr;
+  }
+
+  .result-topline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero-visual,
+  .pdp-media,
+  .source-stage,
+  .compare-frame,
+  .landing-compare {
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+  }
+
+  .compare-frame {
+    aspect-ratio: 3 / 4;
+  }
+
+  .landing-spec-page .site-header {
+    position: static;
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .landing-spec-page .site-header .cart-pill {
+    justify-self: start;
+  }
 }
 
 .loading-overlay[hidden] {
@@ -3834,5 +4311,183 @@ h4,
 .size-chip,
 #seedBadge {
   letter-spacing: 0;
+}
+
+/* Final readability overrides: keep type and controls stable after legacy sections above. */
+.brand-mark {
+  font-size: 2.35rem;
+  line-height: 1;
+}
+
+.header-links a,
+.nav-link-button,
+.cart-pill {
+  text-transform: none;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.hero h1 {
+  max-width: 10.8em;
+  font-size: 4.6rem;
+  line-height: 1.05;
+}
+
+.hero-copy-v2 h1 {
+  max-width: 10.2em;
+  font-size: 4rem;
+  line-height: 1.12;
+}
+
+.section-head h2,
+.pdp-copy h2,
+.tryon-page-head h2,
+.roi-dashboard h2,
+.tech-section h2,
+.final-cta h2 {
+  font-size: 3.25rem;
+  line-height: 1.08;
+}
+
+.pdp-copy h3,
+.compact-head h3,
+.result-topline h3,
+.api-setup-copy h3,
+.tech-copy h3,
+.roi-card h3 {
+  font-size: 2.2rem;
+  line-height: 1.08;
+}
+
+@media (max-width: 920px) {
+  .commerce-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .commerce-panel .buy-now {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  html {
+    scroll-padding-top: 16px;
+  }
+
+  .page-shell,
+  .landing-spec-page {
+    width: min(100vw - 16px, 100%);
+  }
+
+  .brand-mark,
+  .landing-spec-page .brand-mark {
+    font-size: 1.9rem;
+  }
+
+  .site-header,
+  .landing-spec-page .site-header {
+    position: static;
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .header-links,
+  .landing-spec-page .header-links {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .header-links a,
+  .nav-link-button,
+  .landing-spec-page .header-links a {
+    min-height: 38px;
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .landing-spec-page .site-header .cart-pill {
+    justify-self: start;
+  }
+
+  .cart-pill,
+  .primary-button,
+  .secondary-button,
+  .ghost-button,
+  .hero-button,
+  .mode-chip,
+  .product-pill {
+    min-height: 44px;
+    padding: 11px 14px;
+  }
+
+  .hero h1,
+  .hero-copy-v2 h1 {
+    max-width: 100%;
+    font-size: 2.2rem;
+    line-height: 1.14;
+    overflow-wrap: anywhere;
+  }
+
+  .section-head h2,
+  .pdp-copy h2,
+  .tryon-page-head h2,
+  .roi-dashboard h2,
+  .tech-section h2,
+  .final-cta h2,
+  .stress-editorial-copy h3 {
+    max-width: 100%;
+    font-size: 2.25rem;
+    line-height: 1.12;
+    overflow-wrap: break-word;
+  }
+
+  .pdp-copy h3,
+  .compact-head h3,
+  .result-topline h3,
+  .api-setup-copy h3,
+  .tech-copy h3,
+  .roi-card h3 {
+    font-size: 1.75rem;
+  }
+
+  .hero-actions,
+  .pdp-actions,
+  .api-input-row,
+  .api-form {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-actions > *,
+  .pdp-actions > *,
+  .api-input-row > *,
+  .api-form > * {
+    width: 100%;
+  }
+
+  .result-topline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hero-visual,
+  .pdp-media,
+  .source-stage,
+  .compare-frame,
+  .landing-compare {
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+  }
+
+  .compare-frame {
+    aspect-ratio: 3 / 4;
+  }
 }
 
