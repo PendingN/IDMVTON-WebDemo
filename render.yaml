@@ -1,7 +1,7 @@
 services:
   - type: web
     name: idm-vton-web-demo
-    env: python
+    runtime: python
     plan: free
     buildCommand: python -m pip install -r requirements-web.txt
     startCommand: python -B web_demo/server.py --host 0.0.0.0
