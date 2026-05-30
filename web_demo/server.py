@@ -11,6 +11,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
+try:
+    from .database import get_catalog_payload, get_published_trends, init_database
+except ImportError:
+    from database import get_catalog_payload, get_published_trends, init_database
+
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 GRADIO_DIR = ROOT_DIR / "gradio_demo"
@@ -41,6 +46,16 @@ def get_int_env(name: str, default: int) -> int:
         return default
 
 
+def get_query_int(query: dict[str, list[str]], name: str, default: int) -> int:
+    raw_value = query.get(name, [""])[0].strip()
+    if not raw_value:
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default
+
+
 def extract_remote_url(raw_url: str) -> str:
     candidate = (raw_url or "").strip()
     if not candidate:
@@ -60,8 +75,8 @@ def extract_remote_url(raw_url: str) -> str:
 def list_example_assets() -> dict[str, list[Path]]:
     cloth_dir = GRADIO_DIR / "example" / "cloth"
     human_dir = GRADIO_DIR / "example" / "human"
-    cloth_examples = sorted(path for path in cloth_dir.iterdir() if path.is_file())
-    human_examples = sorted(path for path in human_dir.iterdir() if path.is_file())
+    cloth_examples = sorted(path for path in cloth_dir.iterdir() if path.is_file()) if cloth_dir.exists() else []
+    human_examples = sorted(path for path in human_dir.iterdir() if path.is_file()) if human_dir.exists() else []
     return {
         "cloth": cloth_examples,
         "human": human_examples,
@@ -193,6 +208,20 @@ class DemoHandler(BaseHTTPRequestHandler):
             return self._send_json({"status": "ok"})
         if parsed.path == "/api/config":
             return self._send_json({"defaultRemoteUrl": REMOTE_BASE_URL})
+        if parsed.path == "/api/catalog":
+            examples = list_example_assets()
+            return self._send_json(get_catalog_payload(examples["human"]))
+        if parsed.path == "/api/trends":
+            season = query.get("season", ["summer"])[0]
+            region = query.get("region", ["VN"])[0]
+            limit = get_query_int(query, "limit", 8)
+            return self._send_json(
+                {
+                    "season": season or "summer",
+                    "region": region or "VN",
+                    "items": get_published_trends(season=season, region=region, limit=limit),
+                }
+            )
         if parsed.path == "/api/remote-health":
             try:
                 remote_base = self._get_remote_base_url(query)
@@ -327,9 +356,11 @@ def main() -> None:
 
     REMOTE_BASE_URL = extract_remote_url(args.remote_url)
     REMOTE_TIMEOUT = max(5, int(args.remote_timeout))
+    db_path = init_database(list_example_assets()["cloth"])
 
     server = ThreadingHTTPServer((args.host, args.port), DemoHandler)
     print(f"IDM-VTON web UI: http://{args.host}:{args.port}")
+    print(f"SQLite catalog DB: {db_path}")
     if REMOTE_BASE_URL:
         print(f"Default Colab API URL: {REMOTE_BASE_URL}")
     try:

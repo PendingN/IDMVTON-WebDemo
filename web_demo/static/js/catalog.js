@@ -1,44 +1,5 @@
-const PRODUCT_BLUEPRINTS = [
-  {
-    name: "Polo Dáng Gọn",
-    price: "890.000đ",
-    description: "Cổ polo đứng phom, chất vải mịn và bảng màu dễ mặc cho lịch làm việc lẫn cuối tuần.",
-    labels: ["Mực", "Sương", "Đá"],
-    colors: ["#243651", "#d9ddd8", "#d8d0c3"],
-  },
-  {
-    name: "Áo Thun Họa Tiết",
-    price: "720.000đ",
-    description: "Áo thun mềm, hình in sắc nét, tạo điểm nhấn vừa đủ cho những set đồ tối giản.",
-    labels: ["Đỏ", "Đen", "Nắng"],
-    colors: ["#ef4a4a", "#1c1c1c", "#ffd963"],
-  },
-  {
-    name: "Sơ Mi Studio",
-    price: "1.050.000đ",
-    description: "Sơ mi tối giản, đường cắt sạch và đủ trang trọng để mặc đi làm hoặc gặp khách.",
-    labels: ["Mây", "Navy", "Đất"],
-    colors: ["#f2eee8", "#334766", "#c98f7d"],
-  },
-  {
-    name: "Áo Dệt Mềm",
-    price: "980.000đ",
-    description: "Chất dệt mềm, rủ nhẹ trên cơ thể và giữ cảm giác ấm áp mà không nặng nề.",
-    labels: ["Rêu", "Hồng", "Phấn"],
-    colors: ["#78896b", "#d89ea3", "#f4f1ea"],
-  },
-];
-
 export const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL"];
 export const REMOTE_URL_STORAGE_KEY = "idm_vton_remote_url";
-
-function chunk(items, size) {
-  const result = [];
-  for (let index = 0; index < items.length; index += size) {
-    result.push(items.slice(index, index + size));
-  }
-  return result;
-}
 
 export function prettifyAssetName(name) {
   const withoutExtension = name.replace(/\.[a-z0-9]+$/i, "");
@@ -49,43 +10,35 @@ export function prettifyAssetName(name) {
   return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function buildProducts(clothItems) {
-  return chunk(clothItems, 3)
-    .slice(0, PRODUCT_BLUEPRINTS.length)
-    .map((group, productIndex) => {
-      const blueprint = PRODUCT_BLUEPRINTS[productIndex];
-      return {
-        id: `product-${productIndex}`,
-        name: blueprint.name,
-        price: blueprint.price,
-        description: blueprint.description,
-        variants: group.map((item, variantIndex) => ({
-          id: `${productIndex}-${variantIndex}`,
-          label: blueprint.labels[variantIndex] || `Phiên bản ${variantIndex + 1}`,
-          color: blueprint.colors[variantIndex] || "#d9d3c7",
-          url: item.url,
-          name: item.name,
-        })),
-      };
-    });
-}
-
 export async function fetchCatalogData() {
-  const [examplesResponse, configResponse] = await Promise.all([fetch("/api/examples"), fetch("/api/config")]);
+  const [catalogResponse, configResponse] = await Promise.all([fetch("/api/catalog"), fetch("/api/config")]);
 
-  if (!examplesResponse.ok || !configResponse.ok) {
-    throw new Error("Không tải được dữ liệu mẫu.");
+  if (!catalogResponse.ok || !configResponse.ok) {
+    throw new Error("Không tải được dữ liệu catalog.");
   }
 
-  const payload = await examplesResponse.json();
+  const payload = await catalogResponse.json();
   const config = await configResponse.json();
 
   return {
     heroImage: payload.heroImage || "",
     humans: payload.human || [],
-    products: buildProducts(payload.cloth || []),
+    products: payload.products || [],
     defaultRemoteUrl: config.defaultRemoteUrl || "",
   };
+}
+
+export async function fetchTrendData({ season = "summer", region = "VN", limit = 8 } = {}) {
+  const params = new URLSearchParams({
+    season,
+    region,
+    limit: String(limit),
+  });
+  const response = await fetch(`/api/trends?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error("Không tải được dữ liệu xu hướng.");
+  }
+  return response.json();
 }
 
 export function readSelectionFromQuery(search = window.location.search) {
@@ -114,11 +67,14 @@ export function normalizeSelection(products, selection = {}) {
   };
 }
 
-export function buildTryOnUrl({ productIndex = 0, variantIndex = 0, size = "M" } = {}) {
+export function buildTryOnUrl({ productIndex = 0, variantIndex = 0, size = "M", trendId = "" } = {}) {
   const params = new URLSearchParams({
     product: String(productIndex),
     variant: String(variantIndex),
     size,
   });
+  if (trendId) {
+    params.set("trend", trendId);
+  }
   return `/try-on?${params.toString()}`;
 }
