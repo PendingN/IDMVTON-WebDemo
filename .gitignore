@@ -31,6 +31,8 @@ wandb/
 # Local backups and generated packages
 backup/
 web_demo_backup/
+web_demo/data/*.db
+web_demo/data/*.db-*
 *.zip
 *.7z
 *.rar
