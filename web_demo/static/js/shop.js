@@ -2,25 +2,20 @@ import {
   SIZE_OPTIONS,
   buildTryOnUrl,
   fetchCatalogData,
-  fetchTrendData,
   normalizeSelection,
   readSelectionFromQuery,
 } from "/static/js/catalog.js";
 const state = {
   products: [],
-  trends: [],
   selectedProductIndex: 0,
   selectedVariantIndex: 0,
   selectedSize: "M",
-  selectedTrendId: "",
   cartCount: 0,
   toastTimer: null,
 };
 
 const heroImage = document.getElementById("shopHeroImage");
 const heroMeta = document.getElementById("shopHeroMeta");
-const trendGrid = document.getElementById("trendGrid");
-const trendUpdated = document.getElementById("trendUpdated");
 const productGrid = document.getElementById("productGrid");
 const pdpImage = document.getElementById("pdpImage");
 const pdpProductName = document.getElementById("pdpProductName");
@@ -86,7 +81,6 @@ function goToTryOn() {
     productIndex: state.selectedProductIndex,
     variantIndex: state.selectedVariantIndex,
     size: state.selectedSize,
-    trendId: state.selectedTrendId,
   });
 }
 
@@ -189,95 +183,6 @@ function renderCollection() {
   });
 }
 
-function findProductIndexForTrend(trend) {
-  const text = [trend.title, trend.summary, ...(trend.keywords || [])].join(" ").toLowerCase();
-  const rules = [
-    { terms: ["graphic", "họa tiết", "street", "thun"], productTerms: ["thun", "họa tiết"] },
-    { terms: ["office", "sơ mi", "smart", "capsule"], productTerms: ["sơ mi", "studio"] },
-    { terms: ["linen", "resort", "polo"], productTerms: ["polo"] },
-    { terms: ["dệt", "knit", "mềm"], productTerms: ["dệt", "mềm"] },
-  ];
-
-  for (const rule of rules) {
-    if (!rule.terms.some((term) => text.includes(term))) {
-      continue;
-    }
-    const matchedIndex = state.products.findIndex((product) => {
-      const productText = `${product.name} ${product.description}`.toLowerCase();
-      return rule.productTerms.some((term) => productText.includes(term));
-    });
-    if (matchedIndex >= 0) {
-      return matchedIndex;
-    }
-  }
-
-  return 0;
-}
-
-function renderTrendCards() {
-  trendGrid.replaceChildren();
-
-  if (!state.trends.length) {
-    const empty = document.createElement("p");
-    empty.className = "trend-empty";
-    empty.textContent = "Chưa có style trend được publish cho mùa này.";
-    trendGrid.appendChild(empty);
-    trendUpdated.textContent = "Dữ liệu trend đang chờ cập nhật.";
-    return;
-  }
-
-  state.trends.forEach((trend) => {
-    const card = document.createElement("article");
-    const score = document.createElement("span");
-    const title = document.createElement("h3");
-    const summary = document.createElement("p");
-    const keywordRow = document.createElement("div");
-    const colorRow = document.createElement("div");
-    const footer = document.createElement("div");
-    const source = document.createElement("small");
-    const button = document.createElement("button");
-
-    card.className = "trend-card";
-    score.className = "trend-score";
-    score.textContent = `${Math.round(Number(trend.score || 0))}`;
-    title.textContent = trend.title;
-    summary.textContent = trend.summary;
-
-    keywordRow.className = "trend-keywords";
-    (trend.keywords || []).slice(0, 4).forEach((keyword) => {
-      const chip = document.createElement("span");
-      chip.textContent = keyword;
-      keywordRow.appendChild(chip);
-    });
-
-    colorRow.className = "trend-colors";
-    (trend.colors || []).slice(0, 4).forEach((color) => {
-      const swatch = document.createElement("span");
-      swatch.title = color.label || color.value;
-      swatch.style.background = color.value || "#d9d3c7";
-      colorRow.appendChild(swatch);
-    });
-
-    footer.className = "trend-footer";
-    source.textContent = trend.sourceLabel || "Trend source";
-    button.type = "button";
-    button.className = "trend-action";
-    button.textContent = "Thử style này";
-    button.addEventListener("click", () => {
-      const productIndex = findProductIndexForTrend(trend);
-      state.selectedTrendId = trend.id || "";
-      setSelectedProduct(productIndex, 0, true);
-      showToast(`${trend.title} đang gợi ý ${state.products[productIndex]?.name || "sản phẩm đầu tiên"}.`);
-    });
-
-    footer.append(source, button);
-    card.append(score, title, summary, keywordRow, colorRow, footer);
-    trendGrid.appendChild(card);
-  });
-
-  trendUpdated.textContent = `${state.trends.length} style đã publish cho mùa hè / VN.`;
-}
-
 function renderPdp() {
   const product = getSelectedProduct();
   const variant = getSelectedVariant();
@@ -324,22 +229,14 @@ function setSelectedProduct(productIndex, variantIndex = 0, scrollToPdp = false)
 }
 
 async function boot() {
-  const [data, trendPayload] = await Promise.all([
-    fetchCatalogData(),
-    fetchTrendData({ season: "summer", region: "VN", limit: 6 }).catch((error) => {
-      console.error(error);
-      return { items: [] };
-    }),
-  ]);
+  const data = await fetchCatalogData();
   state.products = data.products;
-  state.trends = trendPayload.items || [];
 
   const selection = normalizeSelection(state.products, readSelectionFromQuery());
   state.selectedProductIndex = selection.productIndex;
   state.selectedVariantIndex = selection.variantIndex;
   state.selectedSize = selection.size;
 
-  renderTrendCards();
   renderCollection();
   renderSizeOptions();
   renderPdp();

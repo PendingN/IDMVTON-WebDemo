@@ -2,7 +2,6 @@ import {
   REMOTE_URL_STORAGE_KEY,
   SIZE_OPTIONS,
   fetchCatalogData,
-  fetchTrendData,
   normalizeSelection,
   prettifyAssetName,
   readSelectionFromQuery,
@@ -10,12 +9,10 @@ import {
 
 const state = {
   products: [],
-  trends: [],
   humans: [],
   catalogHeroImage: "",
   selectedProductIndex: 0,
   selectedVariantIndex: 0,
-  selectedTrendId: "",
   selectedSize: "M",
   garmentMode: "shop",
   uploadedGarmentSource: null,
@@ -133,10 +130,6 @@ function getSelectedProduct() {
 function getSelectedVariant() {
   const product = getSelectedProduct();
   return product?.variants[state.selectedVariantIndex] || null;
-}
-
-function getSelectedTrend() {
-  return state.trends.find((trend) => trend.id === state.selectedTrendId) || null;
 }
 
 function makeUrlSource(url, name) {
@@ -331,7 +324,6 @@ function updateTryOnSummary() {
   const garmentLabel = getCurrentGarmentLabel();
   const shopVariant = getSelectedVariant();
   const shopProduct = getSelectedProduct();
-  const selectedTrend = getSelectedTrend();
 
   selectedGarmentTitle.textContent = garmentLabel;
   selectedGarmentSourceLabel.textContent = state.garmentMode === "shop" ? "Từ shop" : "Ảnh tải lên";
@@ -339,9 +331,7 @@ function updateTryOnSummary() {
   resultProductPrice.textContent = state.garmentMode === "shop" && shopProduct ? shopProduct.price : "Ảnh áo riêng";
   garmentModeCaption.textContent =
     state.garmentMode === "shop"
-      ? selectedTrend
-        ? `Style gợi ý: ${selectedTrend.title}.`
-        : "Dùng sản phẩm đang chọn từ shop."
+      ? "Dùng sản phẩm đang chọn từ shop."
       : "Dùng ảnh áo bạn tải lên.";
 
   shopGarmentModeButton.classList.toggle("is-selected", state.garmentMode === "shop");
@@ -1077,24 +1067,9 @@ function addToCart() {
   showToast(`${product.name} / ${variant.label} / size ${state.selectedSize} đã vào giỏ hàng.`);
 }
 
-function applySelectedTrendPrompt() {
-  const selectedTrend = getSelectedTrend();
-  if (!selectedTrend || promptInput.value.trim()) {
-    return;
-  }
-  promptInput.value = selectedTrend.keywords.slice(0, 5).join(", ");
-}
-
 async function boot() {
-  const [data, trendPayload] = await Promise.all([
-    fetchCatalogData(),
-    fetchTrendData({ season: "summer", region: "VN", limit: 8 }).catch((error) => {
-      console.error(error);
-      return { items: [] };
-    }),
-  ]);
+  const data = await fetchCatalogData();
   state.products = data.products;
-  state.trends = trendPayload.items || [];
   state.humans = data.humans;
   state.catalogHeroImage = data.heroImage;
 
@@ -1102,8 +1077,6 @@ async function boot() {
   state.selectedProductIndex = selection.productIndex;
   state.selectedVariantIndex = selection.variantIndex;
   state.selectedSize = selection.size;
-  state.selectedTrendId = new URLSearchParams(window.location.search).get("trend") || "";
-  applySelectedTrendPrompt();
 
   const queryRemoteUrl = new URLSearchParams(window.location.search).get("remote_url") || "";
   remoteUrlInput.value = queryRemoteUrl || localStorage.getItem(REMOTE_URL_STORAGE_KEY) || data.defaultRemoteUrl || "";

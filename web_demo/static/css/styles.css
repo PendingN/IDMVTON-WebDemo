@@ -146,7 +146,6 @@ input:disabled {
 .landing-story,
 .landing-bridge,
 .hero,
-.trend-section,
 .collection-section,
 .pdp-section,
 .modal-dialog,
@@ -782,7 +781,6 @@ input:disabled {
   bottom: 18px;
 }
 
-.trend-section,
 .collection-section,
 .pdp-section {
   margin-top: 18px;
@@ -808,131 +806,6 @@ input:disabled {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-top: 20px;
-}
-
-.trend-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 20px;
-}
-
-.trend-card {
-  position: relative;
-  display: grid;
-  align-content: start;
-  gap: 14px;
-  min-height: 310px;
-  padding: 18px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(145deg, rgba(255, 252, 248, 0.84), rgba(239, 243, 237, 0.78)),
-    radial-gradient(circle at 92% 10%, rgba(239, 74, 74, 0.14), transparent 22%);
-  box-shadow: var(--shadow-soft);
-}
-
-.trend-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 6px;
-  background: linear-gradient(180deg, #ef4a4a, #ffd963 48%, #334766);
-}
-
-.trend-score {
-  display: inline-grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  justify-self: end;
-  border-radius: 50%;
-  background: var(--ink);
-  color: #f8f7f2;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.trend-card h3 {
-  margin: 0;
-  max-width: 9em;
-  font-family: var(--display);
-  font-size: clamp(28px, 3vw, 40px);
-  font-weight: 700;
-  line-height: 1.02;
-}
-
-.trend-card p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-}
-
-.trend-keywords,
-.trend-colors,
-.trend-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.trend-keywords span {
-  min-height: 30px;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.62);
-  color: var(--ink-soft);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.trend-colors span {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12), 0 5px 12px rgba(21, 21, 21, 0.1);
-}
-
-.trend-footer {
-  justify-content: space-between;
-  margin-top: auto;
-  padding-top: 4px;
-}
-
-.trend-footer small {
-  max-width: 18em;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.trend-action {
-  min-height: 40px;
-  border: 1px solid rgba(18, 52, 26, 0.26);
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: #f8f7f2;
-  padding: 9px 12px;
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-  transition:
-    transform 180ms var(--ease),
-    box-shadow 180ms var(--ease);
-}
-
-.trend-action:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(18, 52, 26, 0.16);
-}
-
-.trend-empty {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--ink-soft);
 }
 
 .product-card {
@@ -2271,10 +2144,6 @@ h4,
   .commerce-panel .buy-now {
     width: 100%;
   }
-
-  .trend-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -2394,23 +2263,6 @@ h4,
 
   .compare-frame {
     aspect-ratio: 3 / 4;
-  }
-
-  .trend-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .trend-card {
-    min-height: auto;
-  }
-
-  .trend-footer {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .trend-action {
-    width: 100%;
   }
 }
 
@@ -3894,14 +3746,36 @@ li,
   pointer-events: none;
 }
 
-.stress-editorial-human {
+.stress-editorial-human,
+.stress-editorial-result {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   min-height: inherit;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center bottom;
   border-radius: inherit;
+  pointer-events: none;
+}
+
+.stress-editorial-human {
   filter: grayscale(1) contrast(1.08) brightness(0.82);
-  transition: filter 520ms var(--ease), transform 520ms var(--ease);
+  opacity: 1;
+  transform: none;
+  transition:
+    filter 520ms var(--ease),
+    opacity 260ms var(--ease);
+}
+
+.stress-editorial-result {
+  z-index: 1;
+  filter: grayscale(0.18) contrast(1.02) brightness(0.96);
+  opacity: 0;
+  transform: none;
+  transition:
+    filter 520ms var(--ease),
+    opacity 360ms var(--ease);
 }
 
 .stress-editorial-scan {
@@ -3942,11 +3816,20 @@ li,
     transform 520ms var(--ease);
 }
 
-.stress-editorial-media:hover .stress-editorial-human,
-.stress-editorial-media:focus-within .stress-editorial-human,
-.stress-editorial-media.is-compositing .stress-editorial-human {
-  filter: grayscale(0.34) contrast(1.02) brightness(0.92);
-  transform: scale(1.015);
+.stress-editorial-media.has-result:hover .stress-editorial-human,
+.stress-editorial-media.has-result:focus-within .stress-editorial-human,
+.stress-editorial-media.has-result.is-compositing .stress-editorial-human {
+  filter: grayscale(0.28) contrast(1.04) brightness(0.82);
+  opacity: 0;
+  transition-delay: 280ms;
+}
+
+.stress-editorial-media.has-result:hover .stress-editorial-result,
+.stress-editorial-media.has-result:focus-within .stress-editorial-result,
+.stress-editorial-media.has-result.is-compositing .stress-editorial-result {
+  filter: grayscale(0) contrast(1) brightness(1);
+  opacity: 1;
+  transition-delay: 240ms;
 }
 
 .stress-editorial-media:hover .stress-editorial-garment,
@@ -3958,11 +3841,22 @@ li,
   max-height: 58%;
   padding: 0;
   background: transparent;
-  opacity: 0.82;
+  opacity: 0;
   mix-blend-mode: multiply;
   filter: saturate(1.08) contrast(1.08);
   box-shadow: none;
-  transform: translate(50%, 50%) perspective(720px) rotateX(4deg);
+  transform: translate(50%, 50%) perspective(720px) rotateX(4deg) scale(0.84);
+  transition:
+    right 520ms var(--ease),
+    bottom 520ms var(--ease),
+    width 520ms var(--ease),
+    max-height 520ms var(--ease),
+    padding 520ms var(--ease),
+    background 520ms var(--ease),
+    filter 520ms var(--ease),
+    box-shadow 520ms var(--ease),
+    transform 520ms var(--ease),
+    opacity 220ms var(--ease) 360ms;
 }
 
 .stress-editorial-media:hover .stress-editorial-scan,
