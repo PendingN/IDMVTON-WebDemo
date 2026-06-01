@@ -27,7 +27,7 @@ const LANDING_PHOTOS = {
       result: "/photo/change3.png",
     },
     {
-      human: "/photo/human4.avif",
+      human: "/photo/human4.png",
       garment: "/photo/ao4.jpg",
       result: "/photo/change4.png",
     },
