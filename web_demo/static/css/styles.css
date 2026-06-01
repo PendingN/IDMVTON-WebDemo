@@ -1986,7 +1986,7 @@ textarea {
 }
 
 .compare-after-reveal {
-  width: auto;
+  width: 100%;
   overflow: hidden;
   clip-path: inset(0 45% 0 0);
 }
@@ -2023,7 +2023,9 @@ textarea {
 }
 
 .compare-frame.has-result .compare-after {
-  animation: resultReveal 420ms var(--ease) both;
+  animation: none;
+  opacity: 1;
+  transform: none;
 }
 
 .compare-frame.has-result .compare-empty {

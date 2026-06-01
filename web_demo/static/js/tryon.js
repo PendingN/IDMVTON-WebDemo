@@ -299,9 +299,9 @@ function updateCartBadge() {
 }
 
 function updateCompareSlider() {
-  const value = `${compareSlider.value}%`;
-  afterReveal.style.width = value;
-  compareDivider.style.left = value;
+  const value = Number(compareSlider.value);
+  afterReveal.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
+  compareDivider.style.left = `${value}%`;
 }
 
 function updateMaskMode() {
