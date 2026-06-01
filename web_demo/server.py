@@ -17,6 +17,7 @@ GRADIO_DIR = ROOT_DIR / "gradio_demo"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 PHOTO_DIR = Path(__file__).resolve().parent / "photo"
+SEASON_DIR = Path(__file__).resolve().parent / "Season"
 ASSETS_DIR = ROOT_DIR / "assets"
 PAGE_ROUTES = {
     "/": "index.html",
@@ -170,6 +171,9 @@ def _resolve_public_path(raw_path: str) -> Path:
     elif root_name == "photo":
         base_dir = PHOTO_DIR
         target = (base_dir / Path(*rel_path.parts[1:])).resolve()
+    elif root_name == "season":
+        base_dir = SEASON_DIR
+        target = (base_dir / Path(*rel_path.parts[1:])).resolve()
     elif root_name == "examples":
         base_dir = GRADIO_DIR / "example"
         target = (base_dir / Path(*rel_path.parts[1:])).resolve()
@@ -230,6 +234,7 @@ class DemoHandler(BaseHTTPRequestHandler):
             parsed.path.startswith("/static/")
             or parsed.path.startswith("/examples/")
             or parsed.path.startswith("/photo/")
+            or parsed.path.startswith("/season/")
             or parsed.path.startswith("/repo-assets/")
         ):
             try:

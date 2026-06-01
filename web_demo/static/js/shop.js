@@ -14,9 +14,104 @@ const state = {
   toastTimer: null,
 };
 
+const SEASON_TRENDS = [
+  {
+    key: "spring",
+    season: "Xuân",
+    title: "Layer Mỏng",
+    note: "Áo khoác nhẹ, màu sáng, hợp những ngày chuyển mùa.",
+    image: "/season/spring/download%20(10).png",
+    width: 736,
+    height: 1308,
+  },
+  {
+    key: "spring",
+    season: "Xuân",
+    title: "Pastel Dạo Phố",
+    note: "Phom mềm và gam sạch để phối cùng denim hoặc chân váy.",
+    image: "/season/spring/download%20(9).png",
+    width: 675,
+    height: 1200,
+  },
+  {
+    key: "summer",
+    season: "Hè",
+    title: "Vacation Fit",
+    note: "Mỏng, thoáng, dễ lên hình cho lịch đi chơi cuối tuần.",
+    image: "/season/summer/download%20(7).png",
+    width: 675,
+    height: 1200,
+  },
+  {
+    key: "summer",
+    season: "Hè",
+    title: "Clean Summer",
+    note: "Tối giản nhưng đủ nổi bật khi thử với nhiều dáng người.",
+    image: "/season/summer/download%20(8).png",
+    width: 655,
+    height: 1164,
+  },
+  {
+    key: "fall",
+    season: "Thu",
+    title: "Soft Fall",
+    note: "Tông ấm, layer vừa phải, hợp ảnh lookbook nhẹ nhàng.",
+    image: "/season/fall/Fall%20outfit%20(not%20mine%F0%9F%98%8A).png",
+    width: 736,
+    height: 1308,
+  },
+  {
+    key: "fall",
+    season: "Thu",
+    title: "Neutral Street",
+    note: "Nâu, xám và denim tạo cảm giác trưởng thành hơn.",
+    image: "/season/fall/z7888108544403_707af33382445a241a2da4ce47e6a9dc.jpg",
+    width: 2000,
+    height: 2000,
+  },
+  {
+    key: "winter",
+    season: "Đông",
+    title: "Warm Minimal",
+    note: "Đồ ấm vừa vặn, dễ kiểm tra phom khi thử ảo.",
+    image: "/season/winter/Look%20book.png",
+    width: 736,
+    height: 1104,
+  },
+  {
+    key: "winter",
+    season: "Đông",
+    title: "Cozy Soft Girl",
+    note: "Layer dày hơn nhưng vẫn giữ dáng gọn trong ảnh.",
+    image: "/season/winter/_winter_simple_comfy_Aesthetic_soft%20girl_%20pretty_Outfit%20inspo_warm_.png",
+    width: 736,
+    height: 1308,
+  },
+];
+
+function getCurrentSeasonKey(date = new Date()) {
+  const month = date.getMonth() + 1;
+  if (month >= 3 && month <= 5) {
+    return "spring";
+  }
+  if (month >= 6 && month <= 8) {
+    return "summer";
+  }
+  if (month >= 9 && month <= 11) {
+    return "fall";
+  }
+  return "winter";
+}
+
+function getCurrentSeasonTrends() {
+  const currentSeasonKey = getCurrentSeasonKey();
+  return SEASON_TRENDS.filter((trend) => trend.key === currentSeasonKey);
+}
+
 const heroImage = document.getElementById("shopHeroImage");
 const heroMeta = document.getElementById("shopHeroMeta");
 const productGrid = document.getElementById("productGrid");
+const seasonTrendRow = document.getElementById("seasonTrendRow");
 const pdpImage = document.getElementById("pdpImage");
 const pdpProductName = document.getElementById("pdpProductName");
 const pdpProductPrice = document.getElementById("pdpProductPrice");
@@ -183,6 +278,73 @@ function renderCollection() {
   });
 }
 
+function previewSeasonTrend(trend) {
+  heroImage.src = trend.image;
+  heroImage.alt = `${trend.title} - ${trend.season}`;
+  heroMeta.textContent = `${trend.season} / ${trend.title}`;
+  showToast(`${trend.title} đã được đưa lên khung xem trước.`);
+}
+
+function addSeasonTrendToCart(trend) {
+  state.cartCount += 1;
+  updateCartBadge();
+  heroImage.src = trend.image;
+  heroImage.alt = `${trend.title} - ${trend.season}`;
+  heroMeta.textContent = `${trend.season} / ${trend.title}`;
+  showToast(`${trend.title} mùa ${trend.season} đã vào giỏ hàng.`);
+}
+
+function renderSeasonTrends() {
+  seasonTrendRow.replaceChildren();
+  const currentSeasonTrends = getCurrentSeasonTrends();
+
+  currentSeasonTrends.forEach((trend) => {
+    const card = document.createElement("article");
+    const image = document.createElement("img");
+    const badge = document.createElement("span");
+    const copy = document.createElement("span");
+    const title = document.createElement("strong");
+    const note = document.createElement("small");
+    const actions = document.createElement("span");
+    const previewButton = document.createElement("button");
+    const cartButton = document.createElement("button");
+
+    card.className = "season-card";
+
+    image.src = trend.image;
+    image.alt = `${trend.title} mùa ${trend.season}`;
+    image.width = trend.width;
+    image.height = trend.height;
+    image.loading = "lazy";
+    image.decoding = "async";
+
+    badge.className = "season-badge";
+    badge.textContent = trend.season;
+
+    copy.className = "season-card-copy";
+    title.textContent = trend.title;
+    note.textContent = trend.note;
+
+    actions.className = "season-card-actions";
+    previewButton.type = "button";
+    previewButton.className = "season-action secondary";
+    previewButton.textContent = "Xem nhanh";
+    previewButton.setAttribute("aria-label", `Xem nhanh ${trend.title} mùa ${trend.season}`);
+    previewButton.addEventListener("click", () => previewSeasonTrend(trend));
+
+    cartButton.type = "button";
+    cartButton.className = "season-action primary";
+    cartButton.textContent = "Thêm vào giỏ";
+    cartButton.setAttribute("aria-label", `Thêm ${trend.title} mùa ${trend.season} vào giỏ hàng`);
+    cartButton.addEventListener("click", () => addSeasonTrendToCart(trend));
+
+    copy.append(title, note);
+    actions.append(previewButton, cartButton);
+    card.append(image, badge, copy, actions);
+    seasonTrendRow.appendChild(card);
+  });
+}
+
 function renderPdp() {
   const product = getSelectedProduct();
   const variant = getSelectedVariant();
@@ -238,6 +400,7 @@ async function boot() {
   state.selectedSize = selection.size;
 
   renderCollection();
+  renderSeasonTrends();
   renderSizeOptions();
   renderPdp();
   updateCartBadge();
