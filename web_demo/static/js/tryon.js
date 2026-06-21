@@ -30,6 +30,164 @@ const state = {
   progressStartedAt: 0,
 };
 
+let isCompareDragging = false;
+
+let undoStack = [];
+let redoStack = [];
+const MAX_STATES = 10;
+let brushPreview = null;
+let drawQueue = [];
+let rafPending = false;
+
+function getOrCreateBrushPreview() {
+  if (!brushPreview) {
+    brushPreview = document.createElement("div");
+    brushPreview.className = "brush-preview-circle";
+    humanDropzone.appendChild(brushPreview);
+  }
+  return brushPreview;
+}
+
+function updateBrushPreview(event) {
+  if (autoMaskToggle.checked || !state.humanSource) {
+    hideBrushPreview();
+    return;
+  }
+
+  const preview = getOrCreateBrushPreview();
+  const rect = maskCanvas.getBoundingClientRect();
+  const source = event.touches ? event.touches[0] : event;
+  
+  const style = window.getComputedStyle(maskCanvas);
+  const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+  const borderTop = parseFloat(style.borderTopWidth) || 0;
+  const borderRight = parseFloat(style.borderRightWidth) || 0;
+  const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+  const paddingLeft = parseFloat(style.paddingLeft) || 0;
+  const paddingTop = parseFloat(style.paddingTop) || 0;
+  const paddingRight = parseFloat(style.paddingRight) || 0;
+  const paddingBottom = parseFloat(style.paddingBottom) || 0;
+
+  const contentWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
+  const ratio = window.devicePixelRatio || 1;
+  const brushSize = Number(brushSizeInput.value);
+  const displaySize = brushSize * ratio * (contentWidth > 0 && maskCanvas.width > 0 ? (contentWidth / maskCanvas.width) : 1);
+
+  const dropzoneRect = humanDropzone.getBoundingClientRect();
+  const xClient = source.clientX;
+  const yClient = source.clientY;
+
+  if (xClient < rect.left || xClient > rect.right || yClient < rect.top || yClient > rect.bottom) {
+    hideBrushPreview();
+    return;
+  }
+
+  const xDropzone = xClient - dropzoneRect.left;
+  const yDropzone = yClient - dropzoneRect.top;
+
+  preview.style.width = `${displaySize}px`;
+  preview.style.height = `${displaySize}px`;
+  preview.style.left = `${xDropzone}px`;
+  preview.style.top = `${yDropzone}px`;
+  preview.style.display = "block";
+}
+
+function hideBrushPreview() {
+  if (brushPreview) {
+    brushPreview.style.display = "none";
+  }
+}
+
+function clearUndoRedo() {
+  undoStack = [];
+  redoStack = [];
+  updateUndoRedoButtons();
+}
+
+function saveState() {
+  redoStack = [];
+  const imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+  undoStack.push(imageData);
+  if (undoStack.length > MAX_STATES) {
+    undoStack.shift();
+  }
+  updateUndoRedoButtons();
+}
+
+function undo() {
+  if (undoStack.length === 0) {
+    return;
+  }
+  
+  const currentImgData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+  redoStack.push(currentImgData);
+  if (redoStack.length > MAX_STATES) {
+    redoStack.shift();
+  }
+  
+  const previousImgData = undoStack.pop();
+  ctx.putImageData(previousImgData, 0, 0);
+  
+  recalculateMaskStrokeReadiness(previousImgData);
+  
+  updateUndoRedoButtons();
+  updateMaskMode();
+  updateRunReadiness();
+}
+
+function redo() {
+  if (redoStack.length === 0) {
+    return;
+  }
+  
+  const currentImgData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+  undoStack.push(currentImgData);
+  if (undoStack.length > MAX_STATES) {
+    undoStack.shift();
+  }
+  
+  const nextImgData = redoStack.pop();
+  ctx.putImageData(nextImgData, 0, 0);
+  
+  recalculateMaskStrokeReadiness(nextImgData);
+  
+  updateUndoRedoButtons();
+  updateMaskMode();
+  updateRunReadiness();
+}
+
+function recalculateMaskStrokeReadiness(imageData) {
+  const data = imageData.data;
+  let hasStroke = false;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] > 0) {
+      hasStroke = true;
+      break;
+    }
+  }
+  state.hasMaskStroke = hasStroke;
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById("undoMaskButton");
+  const redoBtn = document.getElementById("redoMaskButton");
+  if (undoBtn) {
+    undoBtn.disabled = state.busy || undoStack.length === 0;
+  }
+  if (redoBtn) {
+    redoBtn.disabled = state.busy || redoStack.length === 0;
+  }
+}
+
+function processDrawQueue() {
+  rafPending = false;
+  while (drawQueue.length > 0) {
+    const segment = drawQueue.shift();
+    drawStroke(segment.from, segment.to);
+  }
+}
+
+
 const tryonHeroImage = document.getElementById("tryonHeroImage");
 const tryonHeroNote = document.getElementById("tryonHeroNote");
 const selectedGarmentSourceLabel = document.getElementById("selectedGarmentSourceLabel");
@@ -109,6 +267,7 @@ const PROGRESS_MESSAGES = [
 ];
 const REMOTE_URL_PATTERN = /https?:\/\/[^\s'"<>]+/i;
 const KNOWN_REMOTE_SUFFIXES = ["/api/tryon", "/api/health"];
+const REMOTE_HEALTH_TIMEOUT_MS = 12000;
 const busyControls = [
   garmentInput,
   humanInput,
@@ -122,6 +281,11 @@ const busyControls = [
   uploadTriggerButton,
   uploadGarmentButton,
 ];
+const REMOTE_SOURCE_LABELS = {
+  query: "link mở trang",
+  saved: "lần dùng trước",
+  config: "cấu hình server",
+};
 
 function getSelectedProduct() {
   return state.products[state.selectedProductIndex] || null;
@@ -281,6 +445,30 @@ function setRemoteUrlValue(value, { persist = true } = {}) {
   return validation;
 }
 
+function getInitialRemoteCandidate(data) {
+  const params = new URLSearchParams(window.location.search);
+  const candidates = [
+    { source: "query", value: params.get("remote_url") || "" },
+    { source: "config", value: data.defaultRemoteUrl || "" },
+    { source: "saved", value: localStorage.getItem(REMOTE_URL_STORAGE_KEY) || "" },
+  ];
+
+  for (const candidate of candidates) {
+    const url = normalizeRemoteUrlValue(candidate.value);
+    if (url) {
+      return {
+        source: candidate.source,
+        url,
+      };
+    }
+  }
+
+  return {
+    source: "none",
+    url: "",
+  };
+}
+
 function setReadyItem(element, ready) {
   element.classList.toggle("is-ready", ready);
 }
@@ -302,6 +490,65 @@ function updateCompareSlider() {
   const value = Number(compareSlider.value);
   afterReveal.style.clipPath = `inset(0 ${100 - value}% 0 0)`;
   compareDivider.style.left = `${value}%`;
+}
+
+function updateCompareFromPointer(clientX) {
+  const rect = compareFrame.getBoundingClientRect();
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  const percent = (x / rect.width) * 100;
+  compareSlider.value = percent;
+  updateCompareSlider();
+}
+
+function setupCompareFrameDrag() {
+  if (!compareFrame) return;
+
+  compareFrame.addEventListener("pointerdown", (event) => {
+    if (!state.hasResult || state.busy) return;
+    isCompareDragging = true;
+    try {
+      compareFrame.setPointerCapture(event.pointerId);
+    } catch (e) {
+      console.warn("Failed to set pointer capture:", e);
+    }
+
+    const rect = compareFrame.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickPercent = (clickX / rect.width) * 100;
+    const currentVal = Number(compareSlider.value);
+
+    if (Math.abs(clickPercent - currentVal) > 3) {
+      compareFrame.classList.add("is-animating");
+    }
+    compareSlider.value = clickPercent;
+    updateCompareSlider();
+  });
+
+  compareFrame.addEventListener("pointermove", (event) => {
+    if (!isCompareDragging) return;
+    compareFrame.classList.remove("is-animating");
+    updateCompareFromPointer(event.clientX);
+  });
+
+  compareFrame.addEventListener("pointerup", (event) => {
+    isCompareDragging = false;
+    compareFrame.classList.remove("is-animating");
+    try {
+      compareFrame.releasePointerCapture(event.pointerId);
+    } catch (e) {
+      console.warn("Failed to release pointer capture:", e);
+    }
+  });
+
+  compareFrame.addEventListener("pointercancel", (event) => {
+    isCompareDragging = false;
+    compareFrame.classList.remove("is-animating");
+    try {
+      compareFrame.releasePointerCapture(event.pointerId);
+    } catch (e) {
+      console.warn("Failed to release pointer capture:", e);
+    }
+  });
 }
 
 function updateMaskMode() {
@@ -404,6 +651,8 @@ function updateRunReadiness() {
       setStatus("Sẵn sàng tạo ảnh thử đồ.", "idle");
     }
   }
+
+  updateUndoRedoButtons();
 }
 
 function setBusy(isBusy) {
@@ -636,17 +885,30 @@ function resetResult() {
 }
 
 function clearMaskCanvas(markEmpty = true) {
+  if (markEmpty) {
+    saveState();
+  }
   ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
   if (markEmpty) {
     state.hasMaskStroke = false;
     updateMaskMode();
     updateRunReadiness();
+  } else {
+    clearUndoRedo();
   }
 }
 
 function resizeMaskCanvas({ preserve = true } = {}) {
   const rect = humanDropzone.getBoundingClientRect();
   const ratio = window.devicePixelRatio || 1;
+  
+  const newWidth = Math.max(1, Math.floor(rect.width * ratio));
+  const newHeight = Math.max(1, Math.floor(rect.height * ratio));
+  
+  if (maskCanvas.width !== newWidth || maskCanvas.height !== newHeight) {
+    clearUndoRedo();
+  }
+
   const previous = preserve && maskCanvas.width && maskCanvas.height ? document.createElement("canvas") : null;
 
   if (previous) {
@@ -655,10 +917,10 @@ function resizeMaskCanvas({ preserve = true } = {}) {
     previous.getContext("2d").drawImage(maskCanvas, 0, 0);
   }
 
-  maskCanvas.width = Math.max(1, Math.floor(rect.width * ratio));
-  maskCanvas.height = Math.max(1, Math.floor(rect.height * ratio));
-  maskCanvas.style.width = `${rect.width}px`;
-  maskCanvas.style.height = `${rect.height}px`;
+  maskCanvas.width = newWidth;
+  maskCanvas.height = newHeight;
+  maskCanvas.style.width = "";
+  maskCanvas.style.height = "";
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.lineCap = "round";
@@ -674,16 +936,35 @@ function resizeMaskCanvas({ preserve = true } = {}) {
 function getCanvasPoint(event) {
   const rect = maskCanvas.getBoundingClientRect();
   const source = event.touches ? event.touches[0] : event;
-  return {
-    x: source.clientX - rect.left,
-    y: source.clientY - rect.top,
-  };
-}
+  
+  const style = window.getComputedStyle(maskCanvas);
+  const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+  const borderTop = parseFloat(style.borderTopWidth) || 0;
+  const borderRight = parseFloat(style.borderRightWidth) || 0;
+  const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+  const paddingLeft = parseFloat(style.paddingLeft) || 0;
+  const paddingTop = parseFloat(style.paddingTop) || 0;
+  const paddingRight = parseFloat(style.paddingRight) || 0;
+  const paddingBottom = parseFloat(style.paddingBottom) || 0;
 
-function markMaskStroke() {
-  state.hasMaskStroke = true;
-  updateMaskMode();
-  updateRunReadiness();
+  const contentWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
+  const contentHeight = rect.height - borderTop - borderBottom - paddingTop - paddingBottom;
+
+  const clientX = source.clientX;
+  const clientY = source.clientY;
+
+  const xCSS = clientX - rect.left - borderLeft - paddingLeft;
+  const yCSS = clientY - rect.top - borderTop - paddingTop;
+
+  const ratio = window.devicePixelRatio || 1;
+
+  const scaleX = contentWidth > 0 ? (maskCanvas.width / (contentWidth * ratio)) : 1;
+  const scaleY = contentHeight > 0 ? (maskCanvas.height / (contentHeight * ratio)) : 1;
+
+  return {
+    x: xCSS * scaleX,
+    y: yCSS * scaleY
+  };
 }
 
 function drawStroke(from, to) {
@@ -703,16 +984,21 @@ function drawStroke(from, to) {
     ctx.stroke();
   }
 
-  markMaskStroke();
+  state.hasMaskStroke = true;
 }
 
 function beginDraw(event) {
   if (autoMaskToggle.checked || !state.humanSource) {
     return;
   }
+  saveState();
   state.drawing = true;
   state.lastPoint = getCanvasPoint(event);
-  drawStroke(state.lastPoint, state.lastPoint);
+  drawQueue.push({ from: state.lastPoint, to: state.lastPoint });
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(processDrawQueue);
+  }
   event.preventDefault();
 }
 
@@ -721,14 +1007,23 @@ function moveDraw(event) {
     return;
   }
   const next = getCanvasPoint(event);
-  drawStroke(state.lastPoint, next);
+  drawQueue.push({ from: state.lastPoint, to: next });
   state.lastPoint = next;
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(processDrawQueue);
+  }
   event.preventDefault();
 }
 
 function endDraw() {
-  state.drawing = false;
-  state.lastPoint = null;
+  if (state.drawing) {
+    state.drawing = false;
+    state.lastPoint = null;
+    processDrawQueue();
+    updateMaskMode();
+    updateRunReadiness();
+  }
 }
 
 function createMaskBlob() {
@@ -858,33 +1153,49 @@ async function captureCameraFrame() {
   setStatus("Đã chụp ảnh từ camera.", "idle");
 }
 
-async function checkRemoteConnection() {
+async function checkRemoteConnection({ focusOnError = true, automatic = false } = {}) {
   const remoteValidation = commitRemoteUrl({ showEmpty: true });
   if (!remoteValidation.ok) {
     setStatus(remoteValidation.error || "Nhập Colab API URL trước khi test.", "error");
-    remoteUrlInput.focus();
-    return;
+    if (focusOnError) {
+      remoteUrlInput.focus();
+    }
+    return false;
   }
   const remoteUrl = remoteValidation.url;
 
   checkRemoteButton.disabled = true;
-  setStatus("Đang kiểm tra bridge…", "busy");
+  setStatus(automatic ? "Đang tự kiểm tra Colab bridge…" : "Đang kiểm tra bridge…", "busy");
   setRemoteFeedback("Đang gọi /api/health…", "busy");
 
   try {
     storeRemoteUrl();
-    const response = await fetch(`/api/remote-health?remote_url=${encodeURIComponent(remoteUrl)}`);
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Kiểm tra bridge thất bại.");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REMOTE_HEALTH_TIMEOUT_MS);
+    try {
+      const response = await fetch(`/api/remote-health?remote_url=${encodeURIComponent(remoteUrl)}`, {
+        signal: controller.signal,
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Kiểm tra bridge thất bại.");
+      }
+      updateRunReadiness();
+      setStatus(`Bridge sẵn sàng: ${payload.remoteUrl}`, "idle");
+      setRemoteFeedback("Kết nối API thành công.", "ok");
+      return true;
+    } finally {
+      clearTimeout(timeout);
     }
-    setStatus(`Bridge sẵn sàng: ${payload.remoteUrl}`, "idle");
-    setRemoteFeedback("Kết nối API thành công.", "ok");
   } catch (error) {
-    setStatus(error.message || "Không thể kết nối bridge.", "error");
-    setRemoteFeedback(error.message || "Không thể kết nối API.", "error");
-  } finally {
+    const message =
+      error.name === "AbortError"
+        ? "Colab bridge phản hồi quá lâu. Kiểm tra lại link public URL."
+        : error.message || "Không thể kết nối bridge.";
     updateRunReadiness();
+    setStatus(message, "error");
+    setRemoteFeedback(message, "error");
+    return false;
   }
 }
 
@@ -950,7 +1261,7 @@ async function runTryOn() {
     compareFrame.classList.add("has-result");
     compareSlider.disabled = false;
     updateCompareSlider();
-    setStatus("Đã xong. Kéo thanh trước/sau để so sánh.", "idle");
+    setStatus("Thử đồ hoàn tất. Kéo thanh trước/sau để so sánh.", "idle");
   } catch (error) {
     setStatus(error.message || "Không tạo được ảnh thử đồ.", "error");
   } finally {
@@ -1078,9 +1389,14 @@ async function boot() {
   state.selectedVariantIndex = selection.variantIndex;
   state.selectedSize = selection.size;
 
-  const queryRemoteUrl = new URLSearchParams(window.location.search).get("remote_url") || "";
-  remoteUrlInput.value = queryRemoteUrl || localStorage.getItem(REMOTE_URL_STORAGE_KEY) || data.defaultRemoteUrl || "";
-  commitRemoteUrl({ showEmpty: false });
+  const remoteCandidate = getInitialRemoteCandidate(data);
+  if (remoteCandidate.url) {
+    setRemoteUrlValue(remoteCandidate.url);
+    const sourceLabel = REMOTE_SOURCE_LABELS[remoteCandidate.source] || "cấu hình";
+    setRemoteFeedback(`Đã tự nạp API từ ${sourceLabel}.`, "ok");
+  } else {
+    commitRemoteUrl({ showEmpty: false });
+  }
 
   renderProductPills();
   renderSwatches();
@@ -1096,6 +1412,10 @@ async function boot() {
   updateMaskMode();
   updateRunReadiness();
   resizeMaskCanvas({ preserve: false });
+
+  if (remoteCandidate.url) {
+    await checkRemoteConnection({ focusOnError: false, automatic: true });
+  }
 }
 
 uploadTriggerButton.addEventListener("click", () => humanInput.click());
@@ -1121,9 +1441,10 @@ headerCartButton.addEventListener("click", () => {
 });
 modalAddToCartButton.addEventListener("click", addToCart);
 
-checkRemoteButton.addEventListener("click", checkRemoteConnection);
+checkRemoteButton.addEventListener("click", () => checkRemoteConnection());
 runButton.addEventListener("click", runTryOn);
 compareSlider.addEventListener("input", updateCompareSlider);
+setupCompareFrameDrag();
 remoteUrlInput.addEventListener("input", updateRunReadiness);
 remoteUrlInput.addEventListener("change", storeRemoteUrl);
 remoteUrlInput.addEventListener("blur", storeRemoteUrl);
@@ -1168,13 +1489,41 @@ autoMaskToggle.addEventListener("change", () => {
 });
 
 maskCanvas.addEventListener("mousedown", beginDraw);
-maskCanvas.addEventListener("mousemove", moveDraw);
+maskCanvas.addEventListener("mousemove", (event) => {
+  updateBrushPreview(event);
+  moveDraw(event);
+});
 window.addEventListener("mouseup", endDraw);
-maskCanvas.addEventListener("touchstart", beginDraw, { passive: false });
-maskCanvas.addEventListener("touchmove", moveDraw, { passive: false });
-window.addEventListener("touchend", endDraw);
-window.addEventListener("touchcancel", endDraw);
+
+maskCanvas.addEventListener("mouseenter", updateBrushPreview);
+maskCanvas.addEventListener("mouseleave", hideBrushPreview);
+
+maskCanvas.addEventListener("touchstart", (event) => {
+  updateBrushPreview(event);
+  beginDraw(event);
+}, { passive: false });
+maskCanvas.addEventListener("touchmove", (event) => {
+  updateBrushPreview(event);
+  moveDraw(event);
+}, { passive: false });
+window.addEventListener("touchend", () => {
+  hideBrushPreview();
+  endDraw();
+});
+window.addEventListener("touchcancel", () => {
+  hideBrushPreview();
+  endDraw();
+});
 window.addEventListener("resize", () => resizeMaskCanvas({ preserve: true }));
+
+const undoMaskButton = document.getElementById("undoMaskButton");
+const redoMaskButton = document.getElementById("redoMaskButton");
+if (undoMaskButton) {
+  undoMaskButton.addEventListener("click", undo);
+}
+if (redoMaskButton) {
+  redoMaskButton.addEventListener("click", redo);
+}
 
 document.addEventListener("dragover", (event) => {
   if (event.dataTransfer?.types.includes("Files")) {

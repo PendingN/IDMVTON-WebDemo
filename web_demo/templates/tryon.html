@@ -225,7 +225,11 @@
                   <input id="brushSizeInput" name="brush_size" type="range" min="8" max="72" value="28">
                 </div>
 
-                <button id="clearMaskButton" class="ghost-button full-width" type="button">Xóa mask</button>
+                <div class="mask-buttons-group">
+                  <button id="clearMaskButton" class="ghost-button" type="button">Xóa mask</button>
+                  <button id="undoMaskButton" class="ghost-button" type="button" disabled>Undo</button>
+                  <button id="redoMaskButton" class="ghost-button" type="button" disabled>Redo</button>
+                </div>
               </div>
             </details>
           </section>
@@ -241,9 +245,9 @@
 
             <div class="compare-card">
               <div id="compareFrame" class="compare-frame empty">
-                <img id="beforeImage" class="compare-before" width="720" height="960" alt="Ảnh trước khi thử đồ">
+                <img id="beforeImage" class="compare-before" width="720" height="960" alt="Ảnh trước khi thử đồ" draggable="false">
                 <div id="afterReveal" class="compare-after-reveal">
-                  <img id="afterImage" class="compare-after" width="720" height="960" alt="Ảnh sau khi thử đồ">
+                  <img id="afterImage" class="compare-after" width="720" height="960" alt="Ảnh sau khi thử đồ" draggable="false">
                 </div>
                 <div id="compareDivider" class="compare-divider"></div>
                 <div class="compare-skeleton" aria-hidden="true">

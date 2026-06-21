@@ -148,24 +148,50 @@ function setupHeroCompareDrag() {
   }
 
   landingCompare.addEventListener("pointerdown", (event) => {
+    const rect = landingCompare.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickPercent = (clickX / rect.width) * 100;
+    const dist = Math.abs(clickPercent - heroCompareValue);
+
     isHeroCompareDragging = true;
-    landingCompare.setPointerCapture(event.pointerId);
-    updateHeroCompareFromPointer(event.clientX);
+    try {
+      landingCompare.setPointerCapture(event.pointerId);
+    } catch (e) {
+      console.warn("Failed to set pointer capture:", e);
+    }
+
+    if (dist > 3) {
+      landingCompare.classList.add("is-animating");
+    }
+    updateHeroCompare(clickPercent);
   });
 
   landingCompare.addEventListener("pointermove", (event) => {
     if (!isHeroCompareDragging) {
       return;
     }
+    landingCompare.classList.remove("is-animating");
     updateHeroCompareFromPointer(event.clientX);
   });
 
-  landingCompare.addEventListener("pointerup", () => {
+  landingCompare.addEventListener("pointerup", (event) => {
     isHeroCompareDragging = false;
+    landingCompare.classList.remove("is-animating");
+    try {
+      landingCompare.releasePointerCapture(event.pointerId);
+    } catch (e) {
+      console.warn("Failed to release pointer capture:", e);
+    }
   });
 
-  landingCompare.addEventListener("pointercancel", () => {
+  landingCompare.addEventListener("pointercancel", (event) => {
     isHeroCompareDragging = false;
+    landingCompare.classList.remove("is-animating");
+    try {
+      landingCompare.releasePointerCapture(event.pointerId);
+    } catch (e) {
+      console.warn("Failed to release pointer capture:", e);
+    }
   });
 
   landingCompare.addEventListener("keydown", (event) => {
