@@ -137,22 +137,9 @@ class TryonService:
                 torch_dtype=torch.float16,
             )
 
-            if not torch.cuda.is_available():
-                raise RuntimeError(
-                    "CUDA GPU is required. "
-                    "In Colab, select Runtime > Change runtime type > T4 GPU."
-                )
+            self.parsing_model = Parsing(0)
+            self.openpose_model = OpenPose(0)
 
-            cuda_index = (
-                int(self.device.split(":", 1)[1])
-                if ":" in self.device
-                else 0
-            )
-
-            torch.cuda.set_device(cuda_index)
-
-            self.parsing_model = Parsing(cuda_index)
-            self.openpose_model = OpenPose(cuda_index)
             for module in (
                 self.unet,
                 self.unet_encoder,
@@ -279,14 +266,6 @@ class TryonService:
             crop_size = cropped_img.size
             human_img = cropped_img.resize((768, 1024))
             if manual_mask is not None:
-                manual_mask = manual_mask.convert("L")
-
-                if manual_mask.size != human_img_orig.size:
-                    manual_mask = manual_mask.resize(
-                        human_img_orig.size,
-                        Image.Resampling.NEAREST,
-                    )
-
                 manual_mask = manual_mask.crop(crop_box)
         else:
             human_img = human_img_orig.resize((768, 1024))
