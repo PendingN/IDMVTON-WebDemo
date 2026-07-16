@@ -30,7 +30,6 @@ const PRODUCT_BLUEPRINTS = [
 ];
 
 export const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL"];
-export const REMOTE_URL_STORAGE_KEY = "idm_vton_remote_url";
 
 function chunk(items, size) {
   const result = [];

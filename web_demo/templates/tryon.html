@@ -59,41 +59,7 @@
           <a class="ghost-button page-link-button" href="/shop">Về shop</a>
         </div>
 
-        <section class="api-setup-panel" aria-labelledby="apiSetupTitle">
-          <div class="api-setup-copy">
-            <p class="panel-kicker">Kết nối API</p>
-            <h3 id="apiSetupTitle">Dán link Colab bridge</h3>
-            <p id="remoteUrlHelp">
-              Nhận link Cloudflare/ngrok hoặc localhost. Có thể dán cả URL gốc hoặc URL kết thúc bằng
-              <code>/api/tryon</code>.
-            </p>
-          </div>
-          <div class="api-setup-form">
-            <label for="remoteUrlInput">Colab API URL</label>
-            <div class="api-input-row">
-              <input
-                id="remoteUrlInput"
-                name="remote_url"
-                type="url"
-                inputmode="url"
-                autocomplete="off"
-                spellcheck="false"
-                aria-describedby="remoteUrlHelp remoteUrlFeedback"
-                placeholder="https://bridge.example.com…"
-              >
-              <button id="pasteRemoteButton" class="ghost-button slim" type="button">Dán link</button>
-              <button id="checkRemoteButton" class="secondary-button slim" type="button">Kiểm tra API</button>
-            </div>
-            <div class="api-quick-row" aria-label="API preset">
-              <button class="api-preset-chip" type="button" data-remote-url="http://127.0.0.1:7862">Local 7862</button>
-              <button class="api-preset-chip" type="button" data-remote-url="http://127.0.0.1:7863">Local 7863</button>
-              <button id="clearRemoteButton" class="api-preset-chip muted" type="button">Xóa</button>
-            </div>
-            <p id="remoteUrlFeedback" class="api-feedback" role="status" aria-live="polite">
-              Chưa kết nối API.
-            </p>
-          </div>
-        </section>
+
 
         <div class="tryon-simple-grid tryon-commerce-grid">
           <section class="tryon-steps tryon-control-column" aria-labelledby="sourceTitle">
@@ -178,6 +144,20 @@
                 <small>Kết nối AI, camera, mask</small>
               </summary>
               <div class="drawer-content">
+                <div class="connection-card api-setup-form">
+                  <label for="remoteUrlInput">Kết nối API Colab Bridge</label>
+                  <p id="remoteUrlHelp" style="margin: 0 0 10px; color: var(--ink-soft); font-size: 13px; line-height: 1.4;">
+                    Nhập public URL của bridge. URL này dùng cho phiên server hiện tại; <code>--remote-url</code> và <code>IDM_VTON_REMOTE_URL</code> vẫn có thể đặt sẵn khi khởi động.
+                  </p>
+                  <div class="api-input-row">
+                    <input id="remoteUrlInput" type="url" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="remoteUrlHelp remoteUrlFeedback" placeholder="https://your-bridge-url">
+                    <button id="checkRemoteButton" class="secondary-button slim" type="button">Lưu &amp; kiểm tra</button>
+                  </div>
+                  <p id="remoteUrlFeedback" class="api-feedback" role="status" aria-live="polite">
+                    Chưa cấu hình API.
+                  </p>
+                </div>
+
                 <div class="source-actions">
                   <button id="openCameraButton" class="secondary-button" type="button">Mở camera</button>
                   <button id="captureButton" class="ghost-button" type="button" hidden>Chụp</button>

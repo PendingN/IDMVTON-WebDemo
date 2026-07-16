@@ -23,6 +23,7 @@ for path in (ROOT_DIR, GRADIO_DIR):
 
 
 INFERENCE_LOCK = threading.Lock()
+MAX_REQUEST_BYTES = 20 * 1024 * 1024
 WARMUP_STATE = {
     "status": "not_started",
     "error": "",
@@ -39,7 +40,19 @@ def image_to_data_url(image, quality: int = 88) -> str:
 def bool_from_value(value: str, default: bool = False) -> bool:
     if value is None:
         return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+    normalized = value.strip().lower()
+
+    if normalized == "":
+        return default
+
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+
+    return default
 
 
 def safe_int(value: str, default: int) -> int:
@@ -51,7 +64,15 @@ def safe_int(value: str, default: int) -> int:
 
 def parse_multipart_request(handler: BaseHTTPRequestHandler) -> dict[str, dict[str, object]]:
     content_type = handler.headers.get("Content-Type", "")
-    content_length = int(handler.headers.get("Content-Length", "0"))
+    raw_length = handler.headers.get("Content-Length")
+    try:
+        content_length = int(raw_length or "")
+    except ValueError as exc:
+        raise ValueError("A valid Content-Length header is required.") from exc
+    if content_length < 0:
+        raise ValueError("A valid Content-Length header is required.")
+    if content_length > MAX_REQUEST_BYTES:
+        raise OverflowError(f"Request body exceeds the {MAX_REQUEST_BYTES // (1024 * 1024)} MB limit.")
     body = handler.rfile.read(content_length)
     envelope = (
         f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8") + body
@@ -175,27 +196,51 @@ class ColabBridgeHandler(BaseHTTPRequestHandler):
 
             auto_mask = bool_from_value(get_field_value(form, "auto_mask"), default=True)
             auto_crop = bool_from_value(get_field_value(form, "auto_crop"), default=False)
-            denoise_steps = safe_int(get_field_value(form, "denoise_steps"), 30)
+            denoise_steps = safe_int(
+                get_field_value(form, "denoise_steps"),
+                30,
+            )
+
+            if not 1 <= denoise_steps <= 50:
+                return self._send_error_json(
+                    HTTPStatus.BAD_REQUEST,
+                    "denoise_steps must be between 1 and 50.",
+                )
+
             seed = safe_int(get_field_value(form, "seed"), 42)
             garment_description = get_field_value(form, "garment_description", "")
 
             with INFERENCE_LOCK:
                 service = get_tryon_service()
-                result = service.run(
-                    human_image=human_image,
-                    garment_image=garment_image,
-                    garment_description=garment_description,
-                    auto_mask=auto_mask,
-                    auto_crop=auto_crop,
-                    denoise_steps=denoise_steps,
-                    seed=seed,
-                    manual_mask=mask_image,
-                )
+
+                if not service.is_loaded:
+                    WARMUP_STATE["status"] = "loading"
+                    WARMUP_STATE["error"] = ""
+
+                try:
+                    result = service.run(
+                        human_image=human_image,
+                        garment_image=garment_image,
+                        garment_description=garment_description,
+                        auto_mask=auto_mask,
+                        auto_crop=auto_crop,
+                        denoise_steps=denoise_steps,
+                        seed=seed,
+                        manual_mask=mask_image,
+                    )
+                except Exception as exc:
+                    WARMUP_STATE["status"] = "error"
+                    WARMUP_STATE["error"] = str(exc)
+                    raise
+
+                WARMUP_STATE["status"] = "ready"
+                WARMUP_STATE["error"] = ""
 
             return self._send_json(
                 {
                     "seed": result["seed"],
                     "outputImage": image_to_data_url(result["output_image"]),
+                    "beforeImage": image_to_data_url(result["before_image"]),
                     "maskPreview": image_to_data_url(result["mask_preview"], quality=82),
                 }
             )
@@ -205,11 +250,15 @@ class ColabBridgeHandler(BaseHTTPRequestHandler):
         except ConnectionResetError:
             print("[colab-bridge] Client reset the connection before inference response finished sending.")
             return
+        except OverflowError as exc:
+            return self._send_error_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, str(exc))
+        except ValueError as exc:
+            return self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
         except Exception as exc:
+            self.log_error("Inference failed: %s", exc)
             return self._send_error_json(
                 HTTPStatus.INTERNAL_SERVER_ERROR,
-                f"Inference failed: {exc}",
-                details=traceback.format_exc(limit=8),
+                "Inference failed.",
             )
 
     def log_message(self, format: str, *args) -> None:
@@ -225,16 +274,8 @@ class ColabBridgeHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
-    def _send_error_json(
-        self,
-        status: HTTPStatus,
-        message: str,
-        details: str | None = None,
-    ) -> None:
-        payload = {"error": message}
-        if details:
-            payload["details"] = details
-        self._send_json(payload, status=status)
+    def _send_error_json(self, status: HTTPStatus, message: str) -> None:
+        self._send_json({"error": message}, status=status)
 
     def _send_cors_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")

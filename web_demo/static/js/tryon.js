@@ -1,11 +1,14 @@
 import {
-  REMOTE_URL_STORAGE_KEY,
   SIZE_OPTIONS,
   fetchCatalogData,
   normalizeSelection,
   prettifyAssetName,
   readSelectionFromQuery,
 } from "/static/js/catalog.js";
+import {
+  computeBoundedExportSize,
+  computeContainedImageRect,
+} from "/static/js/mask_geometry.mjs";
 
 const state = {
   products: [],
@@ -28,6 +31,8 @@ const state = {
   toastTimer: null,
   progressTimer: null,
   progressStartedAt: 0,
+  remoteUrl: "",
+  resetMaskOnHumanLoad: false,
 };
 
 let isCompareDragging = false;
@@ -57,23 +62,12 @@ function updateBrushPreview(event) {
   const preview = getOrCreateBrushPreview();
   const rect = maskCanvas.getBoundingClientRect();
   const source = event.touches ? event.touches[0] : event;
-  
-  const style = window.getComputedStyle(maskCanvas);
-  const borderLeft = parseFloat(style.borderLeftWidth) || 0;
-  const borderTop = parseFloat(style.borderTopWidth) || 0;
-  const borderRight = parseFloat(style.borderRightWidth) || 0;
-  const borderBottom = parseFloat(style.borderBottomWidth) || 0;
-  const paddingLeft = parseFloat(style.paddingLeft) || 0;
-  const paddingTop = parseFloat(style.paddingTop) || 0;
-  const paddingRight = parseFloat(style.paddingRight) || 0;
-  const paddingBottom = parseFloat(style.paddingBottom) || 0;
-
-  const contentWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
-  const ratio = window.devicePixelRatio || 1;
   const brushSize = Number(brushSizeInput.value);
-  const displaySize = brushSize * ratio * (contentWidth > 0 && maskCanvas.width > 0 ? (contentWidth / maskCanvas.width) : 1);
 
   const dropzoneRect = humanDropzone.getBoundingClientRect();
+  const dropzoneStyle = window.getComputedStyle(humanDropzone);
+  const dropzoneBorderLeft = parseFloat(dropzoneStyle.borderLeftWidth) || 0;
+  const dropzoneBorderTop = parseFloat(dropzoneStyle.borderTopWidth) || 0;
   const xClient = source.clientX;
   const yClient = source.clientY;
 
@@ -82,11 +76,11 @@ function updateBrushPreview(event) {
     return;
   }
 
-  const xDropzone = xClient - dropzoneRect.left;
-  const yDropzone = yClient - dropzoneRect.top;
+  const xDropzone = xClient - dropzoneRect.left - dropzoneBorderLeft;
+  const yDropzone = yClient - dropzoneRect.top - dropzoneBorderTop;
 
-  preview.style.width = `${displaySize}px`;
-  preview.style.height = `${displaySize}px`;
+  preview.style.width = `${brushSize}px`;
+  preview.style.height = `${brushSize}px`;
   preview.style.left = `${xDropzone}px`;
   preview.style.top = `${yDropzone}px`;
   preview.style.display = "block";
@@ -225,10 +219,7 @@ const humanExamples = document.getElementById("humanExamples");
 
 const remoteUrlInput = document.getElementById("remoteUrlInput");
 const checkRemoteButton = document.getElementById("checkRemoteButton");
-const pasteRemoteButton = document.getElementById("pasteRemoteButton");
-const clearRemoteButton = document.getElementById("clearRemoteButton");
 const remoteUrlFeedback = document.getElementById("remoteUrlFeedback");
-const apiPresetButtons = document.querySelectorAll(".api-preset-chip[data-remote-url]");
 const promptInput = document.getElementById("promptInput");
 const autoMaskToggle = document.getElementById("autoMaskToggle");
 const autoCropToggle = document.getElementById("autoCropToggle");
@@ -265,9 +256,8 @@ const PROGRESS_MESSAGES = [
   { at: 7500, text: "Đang đồng bộ ánh sáng và hoàn thiện hoa văn…" },
   { at: 12000, text: "Đang xuất ảnh thử đồ cuối cùng…" },
 ];
-const REMOTE_URL_PATTERN = /https?:\/\/[^\s'"<>]+/i;
-const KNOWN_REMOTE_SUFFIXES = ["/api/tryon", "/api/health"];
 const REMOTE_HEALTH_TIMEOUT_MS = 12000;
+const REMOTE_RESTART_MESSAGE = "Nhập URL Colab bridge trong Cài đặt nâng cao hoặc dùng --remote-url / IDM_VTON_REMOTE_URL.";
 const busyControls = [
   garmentInput,
   humanInput,
@@ -281,11 +271,6 @@ const busyControls = [
   uploadTriggerButton,
   uploadGarmentButton,
 ];
-const REMOTE_SOURCE_LABELS = {
-  query: "link mở trang",
-  saved: "lần dùng trước",
-  config: "cấu hình server",
-};
 
 function getSelectedProduct() {
   return state.products[state.selectedProductIndex] || null;
@@ -345,128 +330,12 @@ function setStatus(message, kind = "idle") {
   statusBanner.className = `status-banner ${kind}`;
 }
 
-function getRemoteUrl() {
-  return normalizeRemoteUrlValue(remoteUrlInput.value);
-}
-
-function extractRemoteUrl(rawValue) {
-  const raw = (rawValue || "").trim();
-  if (!raw) {
-    return "";
-  }
-
-  const matchedUrl = raw.match(REMOTE_URL_PATTERN)?.[0];
-  const candidate = matchedUrl || raw.split(/\s+/)[0];
-  return candidate.replace(/[),.;]+$/g, "").replace(/^['"]|['"]$/g, "");
-}
-
-function normalizeRemoteUrlValue(rawValue) {
-  let candidate = extractRemoteUrl(rawValue);
-  if (!candidate) {
-    return "";
-  }
-
-  if (/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/.*)?$/i.test(candidate)) {
-    candidate = `http://${candidate}`;
-  } else if (!/^https?:\/\//i.test(candidate) && /\.[a-z]{2,}(?::\d+)?(?:\/.*)?$/i.test(candidate)) {
-    candidate = `https://${candidate}`;
-  }
-
-  try {
-    const url = new URL(candidate);
-    url.hash = "";
-    url.search = "";
-    url.pathname = url.pathname.replace(/\/+$/g, "");
-    for (const suffix of KNOWN_REMOTE_SUFFIXES) {
-      if (url.pathname.endsWith(suffix)) {
-        url.pathname = url.pathname.slice(0, -suffix.length) || "/";
-        break;
-      }
-    }
-    return url.toString().replace(/\/$/g, "");
-  } catch (error) {
-    return "";
-  }
-}
-
 function setRemoteFeedback(message, kind = "idle") {
   if (!remoteUrlFeedback) {
     return;
   }
   remoteUrlFeedback.textContent = message;
   remoteUrlFeedback.className = `api-feedback ${kind}`;
-}
-
-function validateRemoteUrl({ showEmpty = false } = {}) {
-  const raw = remoteUrlInput.value.trim();
-  const normalized = getRemoteUrl();
-  let error = "";
-
-  if (!raw) {
-    error = showEmpty ? "Dán link Colab bridge hoặc chọn preset local." : "";
-  } else if (!normalized) {
-    error = "URL chưa đúng. Dùng dạng https://… hoặc http://127.0.0.1:7862.";
-  }
-
-  const isValid = Boolean(normalized && !error);
-  remoteUrlInput.classList.toggle("has-error", Boolean(error));
-  remoteUrlInput.setAttribute("aria-invalid", error ? "true" : "false");
-
-  if (error) {
-    setRemoteFeedback(error, "error");
-  } else if (isValid) {
-    setRemoteFeedback(`API sẽ gọi qua ${normalized}`, "ok");
-  } else {
-    setRemoteFeedback("Chưa kết nối API.", "idle");
-  }
-
-  return {
-    ok: isValid,
-    url: normalized,
-    error,
-  };
-}
-
-function commitRemoteUrl({ showEmpty = false } = {}) {
-  const validation = validateRemoteUrl({ showEmpty });
-  if (validation.ok) {
-    remoteUrlInput.value = validation.url;
-  }
-  return validation;
-}
-
-function setRemoteUrlValue(value, { persist = true } = {}) {
-  remoteUrlInput.value = value || "";
-  const validation = commitRemoteUrl({ showEmpty: false });
-  if (persist) {
-    storeRemoteUrl();
-  }
-  updateRunReadiness();
-  return validation;
-}
-
-function getInitialRemoteCandidate(data) {
-  const params = new URLSearchParams(window.location.search);
-  const candidates = [
-    { source: "query", value: params.get("remote_url") || "" },
-    { source: "config", value: data.defaultRemoteUrl || "" },
-    { source: "saved", value: localStorage.getItem(REMOTE_URL_STORAGE_KEY) || "" },
-  ];
-
-  for (const candidate of candidates) {
-    const url = normalizeRemoteUrlValue(candidate.value);
-    if (url) {
-      return {
-        source: candidate.source,
-        url,
-      };
-    }
-  }
-
-  return {
-    source: "none",
-    url: "",
-  };
 }
 
 function setReadyItem(element, ready) {
@@ -619,8 +488,7 @@ function updateTryOnSummary() {
 }
 
 function updateRunReadiness() {
-  const remoteValidation = validateRemoteUrl({ showEmpty: false });
-  const remoteReady = remoteValidation.ok;
+  const remoteReady = Boolean(state.remoteUrl);
   const humanReady = Boolean(state.humanSource);
   const garmentReady = Boolean(getCurrentGarmentSource());
   const maskReady = autoMaskToggle.checked || state.hasMaskStroke;
@@ -633,18 +501,18 @@ function updateRunReadiness() {
 
   runButton.disabled = !canRun;
   runButton.textContent = state.busy ? "Đang tạo…" : canRun ? "Tạo ảnh thử đồ" : "Chưa sẵn sàng";
-  checkRemoteButton.disabled = state.busy || !remoteReady;
+  checkRemoteButton.disabled = state.busy;
   captureButton.disabled = state.busy || !state.cameraStream;
   clearMaskButton.disabled = state.busy || !state.hasMaskStroke;
   brushSizeInput.disabled = state.busy || autoMaskToggle.checked || !humanReady;
 
   if (!state.busy && !state.hasResult) {
-    if (!garmentReady) {
+    if (!remoteReady) {
+      setStatus(REMOTE_RESTART_MESSAGE, "error");
+    } else if (!garmentReady) {
       setStatus("Chọn áo từ shop hoặc tải ảnh áo riêng.", "idle");
     } else if (!humanReady) {
       setStatus("Thêm ảnh người mặc để tiếp tục.", "idle");
-    } else if (!remoteReady) {
-      setStatus("Dán Colab bridge ở khối Kết nối API.", "error");
     } else if (!maskReady) {
       setStatus("Bật auto-mask hoặc tô vùng áo trong Cài đặt nâng cao.", "error");
     } else {
@@ -693,15 +561,6 @@ function updateProgressMessage() {
   const elapsed = Date.now() - state.progressStartedAt;
   const message = PROGRESS_MESSAGES.reduce((current, item) => (elapsed >= item.at ? item.text : current), PROGRESS_MESSAGES[0].text);
   progressText.textContent = message;
-}
-
-function storeRemoteUrl() {
-  const validation = commitRemoteUrl({ showEmpty: false });
-  if (validation.ok) {
-    localStorage.setItem(REMOTE_URL_STORAGE_KEY, validation.url);
-  } else {
-    localStorage.removeItem(REMOTE_URL_STORAGE_KEY);
-  }
 }
 
 function renderProductPills() {
@@ -843,12 +702,12 @@ function setHumanSource(source, { fromExampleTile = null } = {}) {
   stopCamera();
 
   if (source) {
+    state.resetMaskOnHumanLoad = true;
     humanPreview.src = source.previewUrl;
-    beforeImage.src = source.previewUrl;
     humanDropzone.classList.add("has-human");
   } else {
+    state.resetMaskOnHumanLoad = false;
     humanPreview.removeAttribute("src");
-    beforeImage.removeAttribute("src");
     humanDropzone.classList.remove("has-human");
   }
 
@@ -871,11 +730,11 @@ function setHumanSource(source, { fromExampleTile = null } = {}) {
   updateMaskMode();
   updateRunReadiness();
 
-  requestAnimationFrame(() => resizeMaskCanvas({ preserve: false }));
 }
 
 function resetResult() {
   state.hasResult = false;
+  beforeImage.removeAttribute("src");
   afterImage.removeAttribute("src");
   maskPreview.removeAttribute("src");
   compareFrame.classList.add("empty");
@@ -888,7 +747,10 @@ function clearMaskCanvas(markEmpty = true) {
   if (markEmpty) {
     saveState();
   }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+  ctx.restore();
   if (markEmpty) {
     state.hasMaskStroke = false;
     updateMaskMode();
@@ -898,15 +760,64 @@ function clearMaskCanvas(markEmpty = true) {
   }
 }
 
+function scaleImageData(imageData, width, height) {
+  if (imageData.width === width && imageData.height === height) {
+    return imageData;
+  }
+
+  const source = document.createElement("canvas");
+  source.width = imageData.width;
+  source.height = imageData.height;
+  source.getContext("2d").putImageData(imageData, 0, 0);
+
+  const target = document.createElement("canvas");
+  target.width = width;
+  target.height = height;
+  const targetContext = target.getContext("2d");
+  targetContext.drawImage(source, 0, 0, width, height);
+  return targetContext.getImageData(0, 0, width, height);
+}
+
+function configureMaskContext(cssWidth, cssHeight) {
+  ctx.setTransform(maskCanvas.width / cssWidth, 0, 0, maskCanvas.height / cssHeight, 0, 0);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+}
+
 function resizeMaskCanvas({ preserve = true } = {}) {
-  const rect = humanDropzone.getBoundingClientRect();
+  if (!state.humanSource || !humanPreview.naturalWidth || !humanPreview.naturalHeight) {
+    return;
+  }
+
+  const stageStyle = window.getComputedStyle(humanDropzone);
+  const paddingLeft = parseFloat(stageStyle.paddingLeft) || 0;
+  const paddingRight = parseFloat(stageStyle.paddingRight) || 0;
+  const paddingTop = parseFloat(stageStyle.paddingTop) || 0;
+  const paddingBottom = parseFloat(stageStyle.paddingBottom) || 0;
+  const contentWidth = Math.max(0, humanDropzone.clientWidth - paddingLeft - paddingRight);
+  const contentHeight = Math.max(0, humanDropzone.clientHeight - paddingTop - paddingBottom);
+  const contained = computeContainedImageRect(
+    contentWidth,
+    contentHeight,
+    humanPreview.naturalWidth,
+    humanPreview.naturalHeight,
+  );
+  if (!contained.width || !contained.height) {
+    return;
+  }
+
+  maskCanvas.style.left = `${paddingLeft + contained.left}px`;
+  maskCanvas.style.top = `${paddingTop + contained.top}px`;
+  maskCanvas.style.width = `${contained.width}px`;
+  maskCanvas.style.height = `${contained.height}px`;
+
   const ratio = window.devicePixelRatio || 1;
-  
-  const newWidth = Math.max(1, Math.floor(rect.width * ratio));
-  const newHeight = Math.max(1, Math.floor(rect.height * ratio));
-  
-  if (maskCanvas.width !== newWidth || maskCanvas.height !== newHeight) {
-    clearUndoRedo();
+  const newWidth = Math.max(1, Math.round(contained.width * ratio));
+  const newHeight = Math.max(1, Math.round(contained.height * ratio));
+  const dimensionsChanged = maskCanvas.width !== newWidth || maskCanvas.height !== newHeight;
+  if (!dimensionsChanged) {
+    configureMaskContext(contained.width, contained.height);
+    return;
   }
 
   const previous = preserve && maskCanvas.width && maskCanvas.height ? document.createElement("canvas") : null;
@@ -919,51 +830,31 @@ function resizeMaskCanvas({ preserve = true } = {}) {
 
   maskCanvas.width = newWidth;
   maskCanvas.height = newHeight;
-  maskCanvas.style.width = "";
-  maskCanvas.style.height = "";
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
   if (previous) {
     ctx.drawImage(previous, 0, 0, previous.width, previous.height, 0, 0, maskCanvas.width, maskCanvas.height);
+    undoStack = undoStack.map((imageData) => scaleImageData(imageData, newWidth, newHeight));
+    redoStack = redoStack.map((imageData) => scaleImageData(imageData, newWidth, newHeight));
+  } else {
+    clearUndoRedo();
   }
 
-  ctx.scale(ratio, ratio);
+  configureMaskContext(contained.width, contained.height);
+  updateUndoRedoButtons();
 }
 
 function getCanvasPoint(event) {
   const rect = maskCanvas.getBoundingClientRect();
   const source = event.touches ? event.touches[0] : event;
-  
-  const style = window.getComputedStyle(maskCanvas);
-  const borderLeft = parseFloat(style.borderLeftWidth) || 0;
-  const borderTop = parseFloat(style.borderTopWidth) || 0;
-  const borderRight = parseFloat(style.borderRightWidth) || 0;
-  const borderBottom = parseFloat(style.borderBottomWidth) || 0;
-  const paddingLeft = parseFloat(style.paddingLeft) || 0;
-  const paddingTop = parseFloat(style.paddingTop) || 0;
-  const paddingRight = parseFloat(style.paddingRight) || 0;
-  const paddingBottom = parseFloat(style.paddingBottom) || 0;
-
-  const contentWidth = rect.width - borderLeft - borderRight - paddingLeft - paddingRight;
-  const contentHeight = rect.height - borderTop - borderBottom - paddingTop - paddingBottom;
-
-  const clientX = source.clientX;
-  const clientY = source.clientY;
-
-  const xCSS = clientX - rect.left - borderLeft - paddingLeft;
-  const yCSS = clientY - rect.top - borderTop - paddingTop;
-
-  const ratio = window.devicePixelRatio || 1;
-
-  const scaleX = contentWidth > 0 ? (maskCanvas.width / (contentWidth * ratio)) : 1;
-  const scaleY = contentHeight > 0 ? (maskCanvas.height / (contentHeight * ratio)) : 1;
+  const scaleX = maskCanvas.width / rect.width;
+  const scaleY = maskCanvas.height / rect.height;
+  const backingX = Math.max(0, Math.min((source.clientX - rect.left) * scaleX, maskCanvas.width));
+  const backingY = Math.max(0, Math.min((source.clientY - rect.top) * scaleY, maskCanvas.height));
 
   return {
-    x: xCSS * scaleX,
-    y: yCSS * scaleY
+    x: backingX / scaleX,
+    y: backingY / scaleY,
   };
 }
 
@@ -1032,15 +923,32 @@ function createMaskBlob() {
   }
 
   const exportCanvas = document.createElement("canvas");
-  exportCanvas.width = maskCanvas.width;
-  exportCanvas.height = maskCanvas.height;
+  const exportSize = computeBoundedExportSize(humanPreview.naturalWidth, humanPreview.naturalHeight);
+  exportCanvas.width = exportSize.width;
+  exportCanvas.height = exportSize.height;
   const exportCtx = exportCanvas.getContext("2d");
   exportCtx.fillStyle = "#000000";
   exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-  exportCtx.drawImage(maskCanvas, 0, 0);
+  exportCtx.drawImage(maskCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
 
-  return new Promise((resolve) => {
-    exportCanvas.toBlob((blob) => resolve(blob), "image/png");
+  const pixels = exportCtx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const value = pixels.data[index] >= 128 ? 255 : 0;
+    pixels.data[index] = value;
+    pixels.data[index + 1] = value;
+    pixels.data[index + 2] = value;
+    pixels.data[index + 3] = 255;
+  }
+  exportCtx.putImageData(pixels, 0, 0);
+
+  return new Promise((resolve, reject) => {
+    exportCanvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Không thể xuất mask PNG. Hãy xóa mask và thử vẽ lại."));
+      }
+    }, "image/png");
   });
 }
 
@@ -1153,27 +1061,22 @@ async function captureCameraFrame() {
   setStatus("Đã chụp ảnh từ camera.", "idle");
 }
 
-async function checkRemoteConnection({ focusOnError = true, automatic = false } = {}) {
-  const remoteValidation = commitRemoteUrl({ showEmpty: true });
-  if (!remoteValidation.ok) {
-    setStatus(remoteValidation.error || "Nhập Colab API URL trước khi test.", "error");
-    if (focusOnError) {
-      remoteUrlInput.focus();
-    }
+async function checkRemoteConnection({ automatic = false } = {}) {
+  if (!state.remoteUrl) {
+    setStatus(REMOTE_RESTART_MESSAGE, "error");
+    setRemoteFeedback(REMOTE_RESTART_MESSAGE, "error");
     return false;
   }
-  const remoteUrl = remoteValidation.url;
 
   checkRemoteButton.disabled = true;
   setStatus(automatic ? "Đang tự kiểm tra Colab bridge…" : "Đang kiểm tra bridge…", "busy");
   setRemoteFeedback("Đang gọi /api/health…", "busy");
 
   try {
-    storeRemoteUrl();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REMOTE_HEALTH_TIMEOUT_MS);
     try {
-      const response = await fetch(`/api/remote-health?remote_url=${encodeURIComponent(remoteUrl)}`, {
+      const response = await fetch("/api/remote-health", {
         signal: controller.signal,
       });
       const payload = await response.json();
@@ -1190,7 +1093,7 @@ async function checkRemoteConnection({ focusOnError = true, automatic = false } 
   } catch (error) {
     const message =
       error.name === "AbortError"
-        ? "Colab bridge phản hồi quá lâu. Kiểm tra lại link public URL."
+        ? "Colab bridge phản hồi quá lâu. Kiểm tra cấu hình server rồi khởi động lại nếu cần."
         : error.message || "Không thể kết nối bridge.";
     updateRunReadiness();
     setStatus(message, "error");
@@ -1199,13 +1102,45 @@ async function checkRemoteConnection({ focusOnError = true, automatic = false } 
   }
 }
 
+async function saveAndCheckRemoteUrl() {
+  const remoteUrl = remoteUrlInput.value.trim();
+  if (!remoteUrl) {
+    setStatus(REMOTE_RESTART_MESSAGE, "error");
+    setRemoteFeedback(REMOTE_RESTART_MESSAGE, "error");
+    return;
+  }
+
+  checkRemoteButton.disabled = true;
+  setStatus("Đang lưu cấu hình bridge…", "busy");
+  setRemoteFeedback("Đang lưu URL bridge…", "busy");
+
+  try {
+    const response = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ remoteUrl }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Không lưu được URL bridge.");
+    }
+    state.remoteUrl = payload.defaultRemoteUrl || "";
+    remoteUrlInput.value = state.remoteUrl;
+    updateRunReadiness();
+    await checkRemoteConnection();
+  } catch (error) {
+    const message = error.message || "Không lưu được URL bridge.";
+    setStatus(message, "error");
+    setRemoteFeedback(message, "error");
+    updateRunReadiness();
+  }
+}
+
 async function runTryOn() {
-  const remoteValidation = commitRemoteUrl({ showEmpty: true });
-  const remoteUrl = remoteValidation.url;
   const garmentSource = getCurrentGarmentSource();
-  if (!remoteValidation.ok) {
-    setStatus(remoteValidation.error || "Cần Colab API URL.", "error");
-    remoteUrlInput.focus();
+  if (!state.remoteUrl) {
+    setStatus(REMOTE_RESTART_MESSAGE, "error");
+    setRemoteFeedback(REMOTE_RESTART_MESSAGE, "error");
     return;
   }
   if (!state.humanSource || !garmentSource) {
@@ -1221,7 +1156,6 @@ async function runTryOn() {
   setStatus("Đang tạo ảnh thử đồ…", "busy");
 
   try {
-    storeRemoteUrl();
     const humanFile = await sourceToFile(state.humanSource, "human.jpg");
     const garmentFile = await sourceToFile(garmentSource, "garment.jpg");
     const maskBlob = await createMaskBlob();
@@ -1239,7 +1173,7 @@ async function runTryOn() {
       formData.append("mask_image", maskBlob, "mask.png");
     }
 
-    const response = await fetch(`/api/tryon?remote_url=${encodeURIComponent(remoteUrl)}`, {
+    const response = await fetch("/api/tryon", {
       method: "POST",
       body: formData,
     });
@@ -1249,6 +1183,7 @@ async function runTryOn() {
       throw new Error(payload.error || "Remote request thất bại.");
     }
 
+    beforeImage.src = payload.beforeImage;
     afterImage.src = payload.outputImage;
     if (payload.maskPreview) {
       maskPreview.src = payload.maskPreview;
@@ -1296,7 +1231,7 @@ function setupDropzone() {
   });
 }
 
-function validateUploadImage(file) {
+function validateImageFile(file) {
   if (!file) {
     return Promise.resolve({ ok: false, reason: "" });
   }
@@ -1311,17 +1246,8 @@ function validateUploadImage(file) {
     const image = new Image();
     const previewUrl = URL.createObjectURL(file);
     image.onload = () => {
-      const ratio = image.width / image.height;
       URL.revokeObjectURL(previewUrl);
-      if (image.width < 420 || image.height < 560) {
-        resolve({ ok: false, reason: "Ảnh hơi nhỏ. Hãy chọn ảnh rõ và lớn hơn." });
-        return;
-      }
-      if (ratio < 0.32 || ratio > 1.25) {
-        resolve({ ok: false, reason: "Ảnh cần thấy rõ toàn thân hoặc bán thân, không cắt quá sát." });
-        return;
-      }
-      resolve({ ok: true, reason: "" });
+      resolve({ ok: true, reason: "", width: image.naturalWidth, height: image.naturalHeight });
     };
     image.onerror = () => {
       URL.revokeObjectURL(previewUrl);
@@ -1335,10 +1261,23 @@ async function handleHumanFile(file) {
   if (!file) {
     return;
   }
-  const validation = await validateUploadImage(file);
+  const validation = await validateImageFile(file);
   if (!validation.ok) {
     setStatus(validation.reason, "error");
     showToast(validation.reason);
+    return;
+  }
+  const ratio = validation.width / validation.height;
+  if (validation.width < 420 || validation.height < 560) {
+    const reason = "Ảnh hơi nhỏ. Hãy chọn ảnh rõ và lớn hơn.";
+    setStatus(reason, "error");
+    showToast(reason);
+    return;
+  }
+  if (ratio < 0.32 || ratio > 1.25) {
+    const reason = "Ảnh cần thấy rõ toàn thân hoặc bán thân, không cắt quá sát.";
+    setStatus(reason, "error");
+    showToast(reason);
     return;
   }
 
@@ -1346,12 +1285,14 @@ async function handleHumanFile(file) {
   setStatus("Ảnh người đã sẵn sàng.", "idle");
 }
 
-function handleGarmentFile(file) {
+async function handleGarmentFile(file) {
   if (!file) {
     return;
   }
-  if (!file.type.startsWith("image/")) {
-    setStatus("Ảnh áo phải là file ảnh.", "error");
+  const validation = await validateImageFile(file);
+  if (!validation.ok) {
+    setStatus(validation.reason, "error");
+    showToast(validation.reason);
     return;
   }
 
@@ -1383,20 +1324,18 @@ async function boot() {
   state.products = data.products;
   state.humans = data.humans;
   state.catalogHeroImage = data.heroImage;
+  state.remoteUrl = data.defaultRemoteUrl || "";
+  remoteUrlInput.value = state.remoteUrl;
+  if (state.remoteUrl) {
+    setRemoteFeedback("API được cấu hình bởi server.", "ok");
+  } else {
+    setRemoteFeedback(REMOTE_RESTART_MESSAGE, "error");
+  }
 
   const selection = normalizeSelection(state.products, readSelectionFromQuery());
   state.selectedProductIndex = selection.productIndex;
   state.selectedVariantIndex = selection.variantIndex;
   state.selectedSize = selection.size;
-
-  const remoteCandidate = getInitialRemoteCandidate(data);
-  if (remoteCandidate.url) {
-    setRemoteUrlValue(remoteCandidate.url);
-    const sourceLabel = REMOTE_SOURCE_LABELS[remoteCandidate.source] || "cấu hình";
-    setRemoteFeedback(`Đã tự nạp API từ ${sourceLabel}.`, "ok");
-  } else {
-    commitRemoteUrl({ showEmpty: false });
-  }
 
   renderProductPills();
   renderSwatches();
@@ -1413,8 +1352,8 @@ async function boot() {
   updateRunReadiness();
   resizeMaskCanvas({ preserve: false });
 
-  if (remoteCandidate.url) {
-    await checkRemoteConnection({ focusOnError: false, automatic: true });
+  if (state.remoteUrl) {
+    await checkRemoteConnection({ automatic: true });
   }
 }
 
@@ -1441,36 +1380,10 @@ headerCartButton.addEventListener("click", () => {
 });
 modalAddToCartButton.addEventListener("click", addToCart);
 
-checkRemoteButton.addEventListener("click", () => checkRemoteConnection());
+checkRemoteButton.addEventListener("click", saveAndCheckRemoteUrl);
 runButton.addEventListener("click", runTryOn);
 compareSlider.addEventListener("input", updateCompareSlider);
 setupCompareFrameDrag();
-remoteUrlInput.addEventListener("input", updateRunReadiness);
-remoteUrlInput.addEventListener("change", storeRemoteUrl);
-remoteUrlInput.addEventListener("blur", storeRemoteUrl);
-pasteRemoteButton.addEventListener("click", async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    const validation = setRemoteUrlValue(text);
-    setStatus(validation.ok ? "Đã dán và chuẩn hóa API URL." : "Clipboard chưa có URL hợp lệ.", validation.ok ? "idle" : "error");
-  } catch (error) {
-    remoteUrlInput.focus();
-    setStatus("Trình duyệt không cho đọc clipboard. Dán bằng Ctrl+V vào ô API.", "error");
-  }
-});
-clearRemoteButton.addEventListener("click", () => {
-  remoteUrlInput.value = "";
-  localStorage.removeItem(REMOTE_URL_STORAGE_KEY);
-  validateRemoteUrl({ showEmpty: false });
-  updateRunReadiness();
-  setStatus("Đã xóa API URL.", "idle");
-});
-apiPresetButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const validation = setRemoteUrlValue(button.dataset.remoteUrl || "");
-    setStatus(validation.ok ? `Đã chọn ${button.textContent}.` : "Preset API không hợp lệ.", validation.ok ? "idle" : "error");
-  });
-});
 seedInput.addEventListener("input", () => {
   if (!state.hasResult) {
     seedBadge.textContent = `seed ${seedInput.value || 42}`;
@@ -1513,6 +1426,11 @@ window.addEventListener("touchend", () => {
 window.addEventListener("touchcancel", () => {
   hideBrushPreview();
   endDraw();
+});
+humanPreview.addEventListener("load", () => {
+  const preserve = !state.resetMaskOnHumanLoad;
+  state.resetMaskOnHumanLoad = false;
+  resizeMaskCanvas({ preserve });
 });
 window.addEventListener("resize", () => resizeMaskCanvas({ preserve: true }));
 

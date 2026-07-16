@@ -1222,17 +1222,24 @@ input:disabled {
 }
 
 .source-stage img,
-.source-stage video,
-.source-stage canvas {
+.source-stage video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
 
+#maskCanvas {
+  position: absolute;
+}
+
 .source-stage img,
 .source-stage video {
   object-fit: cover;
+}
+
+#humanPreview {
+  object-fit: contain;
 }
 
 .source-stage video {
@@ -1343,7 +1350,7 @@ input:disabled {
 
 .api-input-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: stretch;
 }
@@ -4317,7 +4324,12 @@ h4,
 
 @media (max-width: 768px) {
 .hero {
-    display: none !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero > .hero-visual {
+    display: none;
   }
 
   html {

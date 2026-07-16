@@ -3,12 +3,11 @@ import json
 import mimetypes
 import os
 import re
-import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 
@@ -29,8 +28,11 @@ PAGE_ROUTES = {
 
 REMOTE_BASE_URL = ""
 REMOTE_TIMEOUT = 1800
+REMOTE_HEALTH_TIMEOUT = 10
+MAX_REQUEST_BYTES = 20 * 1024 * 1024
 KNOWN_API_SUFFIXES = ("/api/tryon", "/api/health")
 REMOTE_URL_PATTERN = re.compile(r"https?://[^\s'\"<>]+", re.IGNORECASE)
+mimetypes.add_type("text/javascript", ".mjs")
 
 
 def get_int_env(name: str, default: int) -> int:
@@ -97,11 +99,18 @@ def normalize_remote_endpoint(raw_url: str, api_suffix: str) -> str:
     return urlunsplit((parsed.scheme, parsed.netloc, final_path, parsed.query, parsed.fragment))
 
 
+class RemoteHTTPError(RuntimeError):
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+
+
 def proxy_remote_json(
     method: str,
     remote_url: str,
     body: bytes | None = None,
     content_type: str | None = None,
+    timeout: int | None = None,
 ) -> dict:
     headers = {"Accept": "application/json"}
     if content_type:
@@ -109,16 +118,19 @@ def proxy_remote_json(
     request = Request(remote_url, data=body, headers=headers, method=method)
 
     try:
-        with urlopen(request, timeout=REMOTE_TIMEOUT) as response:
+        with urlopen(request, timeout=timeout or REMOTE_TIMEOUT) as response:
             payload = response.read()
             status_code = response.status
     except HTTPError as exc:
         payload = exc.read()
         try:
             error_payload = json.loads(payload.decode("utf-8"))
-        except Exception:
-            error_payload = {"error": payload.decode("utf-8", errors="replace") or str(exc)}
-        raise RuntimeError(error_payload.get("error") or f"Remote server returned HTTP {exc.code}.") from exc
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            error_payload = {}
+        raise RemoteHTTPError(
+            exc.code,
+            error_payload.get("error") or f"Remote server returned HTTP {exc.code}.",
+        ) from exc
     except URLError as exc:
         raise RuntimeError(f"Could not reach remote Colab API: {exc.reason}") from exc
 
@@ -132,8 +144,22 @@ def proxy_remote_json(
     return decoded
 
 
+def read_request_body(handler: BaseHTTPRequestHandler) -> bytes:
+    raw_length = handler.headers.get("Content-Length")
+    try:
+        content_length = int(raw_length or "")
+    except ValueError as exc:
+        raise ValueError("A valid Content-Length header is required.") from exc
+    if content_length < 0:
+        raise ValueError("A valid Content-Length header is required.")
+    if content_length > MAX_REQUEST_BYTES:
+        raise OverflowError(f"Request body exceeds the {MAX_REQUEST_BYTES // (1024 * 1024)} MB limit.")
+    return handler.rfile.read(content_length)
+
+
 def normalize_tryon_payload(payload: dict) -> dict:
     seed = payload.get("seed", 42)
+    before_image = payload.get("beforeImage")
     output_image = (
         payload.get("outputImage")
         or payload.get("output_image")
@@ -151,10 +177,16 @@ def normalize_tryon_payload(payload: dict) -> dict:
 
     if not output_image:
         raise RuntimeError("Remote Colab API response is missing output image.")
+    if not before_image:
+        raise RemoteHTTPError(
+            502,
+            "Remote Colab API response is missing beforeImage. Update and restart the Colab bridge; deploy/restart the UI and bridge together.",
+        )
 
     return {
         "seed": seed,
         "outputImage": output_image,
+        "beforeImage": before_image,
         "maskPreview": mask_preview or "",
     }
 
@@ -183,7 +215,7 @@ def _resolve_public_path(raw_path: str) -> Path:
     else:
         raise FileNotFoundError(raw_path)
 
-    if not str(target).startswith(str(base_dir.resolve())) or not target.is_file():
+    if not target.is_relative_to(base_dir.resolve()) or not target.is_file():
         raise FileNotFoundError(raw_path)
     return target
 
@@ -193,8 +225,6 @@ class DemoHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
-        query = parse_qs(parsed.query)
-
         if parsed.path in PAGE_ROUTES:
             return self._serve_file(TEMPLATE_DIR / PAGE_ROUTES[parsed.path], "text/html; charset=utf-8")
         if parsed.path == "/api/health":
@@ -203,9 +233,13 @@ class DemoHandler(BaseHTTPRequestHandler):
             return self._send_json({"defaultRemoteUrl": REMOTE_BASE_URL})
         if parsed.path == "/api/remote-health":
             try:
-                remote_base = self._get_remote_base_url(query)
+                remote_base = self._get_remote_base_url()
                 remote_health_url = normalize_remote_endpoint(remote_base, "/api/health")
-                remote_payload = proxy_remote_json("GET", remote_health_url)
+                remote_payload = proxy_remote_json(
+                    "GET",
+                    remote_health_url,
+                    timeout=REMOTE_HEALTH_TIMEOUT,
+                )
                 return self._send_json(
                     {
                         "status": "ok",
@@ -213,6 +247,8 @@ class DemoHandler(BaseHTTPRequestHandler):
                         "remote": remote_payload,
                     }
                 )
+            except RemoteHTTPError as exc:
+                return self._send_error_json(exc.status, str(exc))
             except Exception as exc:
                 return self._send_error_json(HTTPStatus.BAD_GATEWAY, str(exc))
         if parsed.path == "/api/examples":
@@ -247,8 +283,28 @@ class DemoHandler(BaseHTTPRequestHandler):
         self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found.")
 
     def do_POST(self) -> None:
+        global REMOTE_BASE_URL
         parsed = urlsplit(self.path)
-        query = parse_qs(parsed.query)
+
+        if parsed.path == "/api/config":
+            if self.client_address[0] not in {"127.0.0.1", "::1"}:
+                return self._send_error_json(HTTPStatus.FORBIDDEN, "Runtime bridge configuration is local-only.")
+            if "application/json" not in self.headers.get("Content-Type", ""):
+                return self._send_error_json(HTTPStatus.BAD_REQUEST, "Expected application/json payload.")
+            try:
+                payload = json.loads(read_request_body(self).decode("utf-8"))
+                raw_url = payload.get("remoteUrl", "")
+                if not isinstance(raw_url, str):
+                    raise ValueError("Colab API URL must be a string.")
+                remote_url = extract_remote_url(raw_url)
+                normalize_remote_endpoint(remote_url, "/api/tryon")
+                # ponytail: process-wide local setting; add authenticated per-user storage before exposing it publicly.
+                REMOTE_BASE_URL = remote_url
+                return self._send_json({"defaultRemoteUrl": REMOTE_BASE_URL})
+            except OverflowError as exc:
+                return self._send_error_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, str(exc))
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+                return self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
 
         if parsed.path != "/api/tryon":
             return self._send_error_json(HTTPStatus.NOT_FOUND, "Route not found.")
@@ -261,11 +317,9 @@ class DemoHandler(BaseHTTPRequestHandler):
             )
 
         try:
-            remote_base = self._get_remote_base_url(query)
+            body = read_request_body(self)
+            remote_base = self._get_remote_base_url()
             remote_tryon_url = normalize_remote_endpoint(remote_base, "/api/tryon")
-            content_length = int(self.headers.get("Content-Length", "0"))
-            body = self.rfile.read(content_length)
-
             remote_payload = proxy_remote_json(
                 "POST",
                 remote_tryon_url,
@@ -273,18 +327,24 @@ class DemoHandler(BaseHTTPRequestHandler):
                 content_type=content_type,
             )
             return self._send_json(normalize_tryon_payload(remote_payload))
+        except OverflowError as exc:
+            return self._send_error_json(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, str(exc))
+        except ValueError as exc:
+            return self._send_error_json(HTTPStatus.BAD_REQUEST, str(exc))
+        except RemoteHTTPError as exc:
+            return self._send_error_json(exc.status, str(exc))
         except Exception as exc:
+            self.log_error("Remote inference failed: %s", exc)
             return self._send_error_json(
                 HTTPStatus.BAD_GATEWAY,
-                f"Remote inference failed: {exc}",
-                details=traceback.format_exc(limit=8),
+                "Remote inference failed.",
             )
 
     def log_message(self, format: str, *args) -> None:
         print(f"[web-demo] {self.address_string()} - {format % args}")
 
-    def _get_remote_base_url(self, query: dict[str, list[str]]) -> str:
-        remote_url = extract_remote_url(query.get("remote_url", [""])[0]) or extract_remote_url(REMOTE_BASE_URL)
+    def _get_remote_base_url(self) -> str:
+        remote_url = extract_remote_url(REMOTE_BASE_URL)
         if not remote_url:
             raise ValueError("No Colab API URL configured.")
         return remote_url
@@ -305,16 +365,8 @@ class DemoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(raw)
 
-    def _send_error_json(
-        self,
-        status: HTTPStatus,
-        message: str,
-        details: str | None = None,
-    ) -> None:
-        payload = {"error": message}
-        if details:
-            payload["details"] = details
-        self._send_json(payload, status=status)
+    def _send_error_json(self, status: HTTPStatus, message: str) -> None:
+        self._send_json({"error": message}, status=status)
 
 
 def main() -> None:

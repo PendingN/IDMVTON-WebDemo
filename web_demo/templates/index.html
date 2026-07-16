@@ -133,12 +133,23 @@
           </article>
           <article class="tech-row reverse">
             <div class="tech-visual api-card" aria-label="Ví dụ request response API">
-              <pre><code>{
-  "human_image": "model.jpg",
-  "garment_image": "ao-dai.png",
-  "auto_mask": true,
-  "return": ["result", "mask"]
-}</code></pre>
+              <pre><code>const formData = new FormData();
+formData.append("human_image", humanFile);
+formData.append("garment_image", garmentFile);
+formData.append("garment_description", description);
+formData.append("auto_mask", String(autoMask));
+formData.append("auto_crop", String(autoCrop));
+formData.append("denoise_steps", String(denoiseSteps));
+formData.append("seed", String(seed));
+if (maskFile) formData.append("mask_image", maskFile);
+
+const response = await fetch("/api/tryon", {
+  method: "POST",
+  body: formData,
+});
+if (!response.ok) throw new Error("Try-On failed");
+const { seed, outputImage, beforeImage, maskPreview } =
+  await response.json();</code></pre>
             </div>
             <div class="tech-copy">
               <p class="panel-kicker">Kết nối nhanh</p>
