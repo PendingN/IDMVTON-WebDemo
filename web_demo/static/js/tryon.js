@@ -48,6 +48,7 @@ function getOrCreateBrushPreview() {
   if (!brushPreview) {
     brushPreview = document.createElement("div");
     brushPreview.className = "brush-preview-circle";
+    brushPreview.setAttribute("aria-hidden", "true");
     humanDropzone.appendChild(brushPreview);
   }
   return brushPreview;
@@ -1401,6 +1402,12 @@ autoMaskToggle.addEventListener("change", () => {
   updateRunReadiness();
 });
 
+maskCanvas.addEventListener("click", (event) => {
+  if (state.humanSource && !autoMaskToggle.checked) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+});
 maskCanvas.addEventListener("mousedown", beginDraw);
 maskCanvas.addEventListener("mousemove", (event) => {
   updateBrushPreview(event);

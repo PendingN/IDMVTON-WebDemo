@@ -171,7 +171,8 @@ function addToCart() {
   showToast(`${product.name} / ${variant.label} / size ${state.selectedSize} đã vào giỏ hàng.`);
 }
 
-function goToTryOn() {
+function goToTryOn(event) {
+  event?.preventDefault();
   window.location.href = buildTryOnUrl({
     productIndex: state.selectedProductIndex,
     variantIndex: state.selectedVariantIndex,
