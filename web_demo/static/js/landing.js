@@ -37,97 +37,8 @@ const LANDING_PHOTOS = {
 const stressState = {
   tabs: [],
 };
-let revealScrollY = window.scrollY;
-let isRevealScrollingDown = true;
-let revealFrame = null;
 let heroCompareValue = 50;
 let isHeroCompareDragging = false;
-
-function setupRevealAnimations() {
-  window.addEventListener(
-    "scroll",
-    () => {
-      const nextScrollY = window.scrollY;
-      isRevealScrollingDown = nextScrollY >= revealScrollY;
-      revealScrollY = nextScrollY;
-      scheduleRevealUpdate();
-    },
-    { passive: true }
-  );
-  window.addEventListener("resize", scheduleRevealUpdate, { passive: true });
-
-  observeRevealItems();
-}
-
-function observeRevealItems() {
-  const revealItems = Array.from(document.querySelectorAll(".reveal-item"));
-  if (revealItems.length === 0) {
-    return;
-  }
-
-  revealItems.forEach((item, index) => {
-    item.style.setProperty("--reveal-delay", `${Math.min(index * 55, 260)}ms`);
-  });
-  updateRevealItems();
-}
-
-function scheduleRevealUpdate() {
-  if (revealFrame) {
-    return;
-  }
-
-  revealFrame = window.requestAnimationFrame(() => {
-    revealFrame = null;
-    updateRevealItems();
-  });
-}
-
-function replayReveal(item) {
-  item.classList.remove("is-reveal-instant");
-  item.classList.add("is-visible");
-  item.dataset.revealReplayReady = "false";
-}
-
-function showRevealInstantly(item) {
-  item.classList.add("is-reveal-instant", "is-visible");
-  window.requestAnimationFrame(() => {
-    item.classList.remove("is-reveal-instant");
-  });
-}
-
-function updateRevealItems() {
-  const revealLine = window.innerHeight * 0.82;
-  const resetLine = window.innerHeight + 24;
-
-  document.querySelectorAll(".reveal-item").forEach((item) => {
-    const rect = item.getBoundingClientRect();
-    const isInRevealZone = rect.top < revealLine && rect.bottom > 0;
-
-    if (isRevealScrollingDown) {
-      if (!isInRevealZone) {
-        return;
-      }
-
-      if (item.dataset.revealReplayReady === "true") {
-        replayReveal(item);
-        return;
-      }
-
-      item.classList.remove("is-reveal-instant");
-      item.classList.add("is-visible");
-      return;
-    }
-
-    if (rect.top > resetLine) {
-      item.dataset.revealReplayReady = "true";
-      item.classList.remove("is-reveal-instant", "is-visible");
-    }
-
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      showRevealInstantly(item);
-    }
-  });
-}
 
 function updateHeroCompare(value = heroCompareValue) {
   heroCompareValue = Math.max(0, Math.min(value, 100));
@@ -377,11 +288,9 @@ function renderStressPanel() {
       caseNumber: index + 1,
     }))
   );
-  observeRevealItems();
 }
 
 async function boot() {
-  setupRevealAnimations();
   setupHeroCompareDrag();
   setHeroImages({ humans: [], products: [], heroImage: "" });
   buildStressTabs({ humans: [], products: [], heroImage: LANDING_PHOTOS.result });
